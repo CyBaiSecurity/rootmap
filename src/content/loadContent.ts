@@ -20,7 +20,7 @@ function parseFile<T>(
 ): T {
   let document: unknown
   try {
-    document = parse(source)
+    document = parse(source, { merge: true })
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     throw new Error(`${label} contains invalid YAML: ${reason}`)

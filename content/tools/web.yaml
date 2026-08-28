@@ -1,0 +1,35 @@
+tools:
+  - id: curl
+    name: curl
+    description: Inspect and reproduce HTTP requests from the command line.
+    officialUrl: https://curl.se/docs/
+    examples:
+      - context: Inspect response headers
+        syntax: curl -I https://target.example
+      - context: Send a GraphQL request
+        syntax: "curl https://target.example/graphql -H 'Content-Type: application/json' --data '{\"query\":\"{__typename}\"}'"
+  - id: burp-suite
+    name: Burp Suite
+    description: Intercept, inspect, and replay web application traffic.
+    officialUrl: https://portswigger.net/burp/documentation
+    examples: []
+  - id: nmap
+    name: Nmap
+    description: Discover exposed services and collect service fingerprints.
+    officialUrl: https://nmap.org/book/man.html
+    examples:
+      - context: Detect service versions
+        syntax: nmap -sV target.example
+  - id: ffuf
+    name: ffuf
+    description: Enumerate content and virtual hosts with controlled wordlist fuzzing.
+    officialUrl: https://github.com/ffuf/ffuf
+    examples:
+      - context: Content discovery
+        syntax: ffuf -u https://target.example/FUZZ -w wordlist.txt
+  - id: wappalyzer
+    name: Wappalyzer
+    description: Identify web technologies from observable application fingerprints.
+    officialUrl: https://www.wappalyzer.com/
+    examples: []
+

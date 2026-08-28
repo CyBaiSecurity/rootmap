@@ -1,0 +1,52 @@
+resources:
+  - id: wstg-info
+    title: OWASP WSTG v4.2 — Information Gathering
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/
+    tier: 1
+    role: Methodology
+  - id: wstg-config
+    title: OWASP WSTG v4.2 — Configuration and Deployment Management Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/
+    tier: 1
+    role: Methodology
+  - id: wstg-authn
+    title: OWASP WSTG v4.2 — Authentication Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/04-Authentication_Testing/
+    tier: 1
+    role: Methodology
+  - id: wstg-authz
+    title: OWASP WSTG v4.2 — Authorization Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/05-Authorization_Testing/
+    tier: 1
+    role: Methodology
+  - id: wstg-sess
+    title: OWASP WSTG v4.2 — Session Management Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/06-Session_Management_Testing/
+    tier: 1
+    role: Methodology
+  - id: wstg-inpv
+    title: OWASP WSTG v4.2 — Input Validation Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/07-Input_Validation_Testing/
+    tier: 1
+    role: Methodology
+  - id: wstg-busl
+    title: OWASP WSTG v4.2 — Business Logic Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/10-Business_Logic_Testing/
+    tier: 1
+    role: Methodology
+  - id: wstg-clnt
+    title: OWASP WSTG v4.2 — Client-Side Testing
+    url: https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/11-Client-side_Testing/
+    tier: 1
+    role: Methodology
+  - id: graphql-docs
+    title: GraphQL — Learn
+    url: https://graphql.org/learn/
+    tier: 2
+    role: Documentation
+  - id: portswigger-graphql
+    title: PortSwigger Web Security Academy — GraphQL API vulnerabilities
+    url: https://portswigger.net/web-security/graphql
+    tier: 4
+    role: Learning
+

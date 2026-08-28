@@ -1,0 +1,397 @@
+version: "4.2"
+
+categories:
+  - { id: information-gathering, title: Information Gathering, order: 1 }
+  - { id: configuration, title: Configuration, order: 2 }
+  - { id: authentication, title: Authentication, order: 3 }
+  - { id: authorization, title: Authorization, order: 4 }
+  - { id: sessions, title: Sessions, order: 5 }
+  - { id: input-validation, title: Input Validation, order: 6 }
+  - { id: business-logic, title: Business Logic, order: 7 }
+  - { id: client-side, title: Client-Side, order: 8 }
+
+defaults:
+  info: &info
+    category: information-gathering
+    goal: Build an evidence-based picture of the exposed application and its attack surface.
+    why: Reliable reconnaissance prevents later tests from missing hosts, technologies, and entry points.
+    checklist:
+      - Establish a normal response before changing requests.
+      - Collect observable evidence and record how it was obtained.
+      - Confirm each discovery with a second signal where practical.
+    lookFor:
+      - Unexpected hosts, applications, technologies, paths, and information disclosures.
+    tools: [curl, nmap, wappalyzer, ffuf]
+    resources: [wstg-info]
+  config: &config
+    category: configuration
+    goal: Identify deployment and platform settings that expose unnecessary capability or sensitive data.
+    why: Secure application code can still be undermined by unsafe infrastructure and deployment defaults.
+    checklist:
+      - Record the baseline behavior and configuration evidence.
+      - Test only the relevant exposed interface or protocol behavior.
+      - Confirm that any weakness is reachable and security-relevant.
+    lookFor:
+      - Default services, unsafe methods, exposed management surfaces, weak headers, or sensitive files.
+    tools: [curl, nmap, burp-suite, ffuf]
+    resources: [wstg-config]
+  authn: &authn
+    category: authentication
+    goal: Evaluate whether identity verification resists bypass, guessing, recovery abuse, and unsafe credential handling.
+    why: Authentication weaknesses can give an attacker access without a legitimate account secret.
+    checklist:
+      - Map each authentication and recovery channel.
+      - Compare success and failure behavior using controlled accounts.
+      - Verify protections consistently across every channel.
+    lookFor:
+      - Distinguishable failures, missing rate limits, default credentials, bypass paths, or weak recovery controls.
+    tools: [burp-suite, curl]
+    resources: [wstg-authn]
+  authz: &authz
+    category: authorization
+    goal: Verify that every protected action and object enforces the intended access policy.
+    why: A valid session must not grant access to another user’s data or higher-privilege functions.
+    checklist:
+      - Define at least two users or roles with different permissions.
+      - Replay protected requests while changing identity, object, and path inputs.
+      - Confirm enforcement on the server, not only in the interface.
+    lookFor:
+      - Cross-user data access, forced browsing, role escalation, or file access outside the intended scope.
+    tools: [burp-suite, curl]
+    resources: [wstg-authz]
+  sess: &sess
+    category: sessions
+    goal: Assess how the application creates, transports, rotates, and terminates authenticated sessions.
+    why: Weak session controls can allow fixation, theft, replay, or persistence after logout.
+    checklist:
+      - Trace the complete session lifecycle from login through logout.
+      - Inspect tokens and cookie attributes without exposing real secrets in notes.
+      - Replay controlled tokens to verify rotation and invalidation behavior.
+    lookFor:
+      - Predictable or exposed tokens, missing cookie protections, fixation, CSRF, and incomplete invalidation.
+    tools: [burp-suite, curl]
+    resources: [wstg-sess]
+  inpv: &inpv
+    category: input-validation
+    goal: Determine whether untrusted input reaches an interpreter, browser, query, template, or internal service unsafely.
+    why: Input validation failures can alter application behavior and cross trust boundaries.
+    checklist:
+      - Identify the input, its transformations, and its eventual sink.
+      - Use a harmless marker to compare encoded and rejected responses.
+      - Confirm behavior with the smallest non-destructive proof.
+    lookFor:
+      - Reflected markers, parser errors, altered queries, unexpected outbound requests, or execution context changes.
+    tools: [burp-suite, curl]
+    resources: [wstg-inpv]
+  busl: &busl
+    category: business-logic
+    goal: Test whether application rules still hold when valid operations are reordered, repeated, or manipulated.
+    why: Logic flaws arise from workflow assumptions that generic scanners cannot understand.
+    checklist:
+      - Document the expected states, limits, and transitions.
+      - Change one sequence, value, timing, or repetition condition at a time.
+      - Compare the result with the intended business rule.
+    lookFor:
+      - Skipped steps, reusable one-time actions, broken limits, forged requests, or unsafe file handling.
+    tools: [burp-suite, curl]
+    resources: [wstg-busl]
+  clnt: &clnt
+    category: client-side
+    goal: Assess browser-side behavior that processes untrusted data or crosses origins and browsing contexts.
+    why: Client-side trust decisions can expose users even when server responses appear valid.
+    checklist:
+      - Trace controllable data through browser-side sources and sinks.
+      - Test the behavior in the browser and inspect the resulting DOM or request.
+      - Confirm origin, framing, messaging, and storage boundaries.
+    lookFor:
+      - Executable DOM changes, unsafe redirects, permissive origins, framing, message trust, or sensitive browser storage.
+    tools: [burp-suite, curl]
+    resources: [wstg-clnt]
+
+nodes:
+  - <<: *info
+    id: web-search-reconnaissance
+    wstgId: WSTG-v42-INFO-01
+    title: Search-engine reconnaissance
+    order: 1
+  - <<: *info
+    id: web-fingerprint-server
+    wstgId: WSTG-v42-INFO-02
+    title: Fingerprint web server
+    order: 2
+  - <<: *info
+    id: web-identify-technologies
+    wstgId: WSTG-v42-INFO-08
+    title: Identify technologies
+    order: 3
+    goal: Identify technologies, frameworks, libraries, and platforms used by the application.
+    checklist:
+      - Check HTTP response headers for server and framework information.
+      - Analyze HTML source for meta tags, scripts, and comments.
+      - Compare passive fingerprints with a controlled active check.
+      - Identify content management systems and exposed plugins.
+    lookFor:
+      - Server software, frameworks, programming languages, CMS products, plugins, analytics tools, CDNs, and third-party services.
+    findings:
+      - id: graphql-detected
+        title: GraphQL detected
+        next: [web-graphql-overview]
+    nextSteps: [web-enumerate-applications, web-identify-entry-points]
+  - <<: *info
+    id: web-enumerate-applications
+    wstgId: WSTG-v42-INFO-04
+    title: Enumerate applications
+    order: 4
+  - <<: *info
+    id: web-identify-entry-points
+    wstgId: WSTG-v42-INFO-06
+    title: Identify entry points
+    order: 5
+  - <<: *info
+    id: web-map-architecture
+    wstgId: WSTG-v42-INFO-10
+    title: Map architecture
+    order: 6
+
+  - <<: *config
+    id: web-test-network-configuration
+    wstgId: WSTG-v42-CONF-01
+    title: Test network infrastructure configuration
+    order: 1
+  - <<: *config
+    id: web-test-platform-configuration
+    wstgId: WSTG-v42-CONF-02
+    title: Test application platform configuration
+    order: 2
+  - <<: *config
+    id: web-review-backup-files
+    wstgId: WSTG-v42-CONF-04
+    title: Review backup and unreferenced files
+    order: 3
+  - <<: *config
+    id: web-enumerate-admin-interfaces
+    wstgId: WSTG-v42-CONF-05
+    title: Enumerate administration interfaces
+    order: 4
+  - <<: *config
+    id: web-test-http-methods
+    wstgId: WSTG-v42-CONF-06
+    title: Test HTTP methods
+    order: 5
+  - <<: *config
+    id: web-test-hsts
+    wstgId: WSTG-v42-CONF-07
+    title: Test HTTP Strict Transport Security
+    order: 6
+
+  - <<: *authn
+    id: web-test-credential-transport
+    wstgId: WSTG-v42-ATHN-01
+    title: Test credential transport
+    order: 1
+  - <<: *authn
+    id: web-test-default-credentials
+    wstgId: WSTG-v42-ATHN-02
+    title: Test default credentials
+    order: 2
+  - <<: *authn
+    id: web-test-lockout
+    wstgId: WSTG-v42-ATHN-03
+    title: Test account lockout
+    order: 3
+  - <<: *authn
+    id: web-test-authentication-bypass
+    wstgId: WSTG-v42-ATHN-04
+    title: Test authentication bypass
+    order: 4
+  - <<: *authn
+    id: web-test-password-policy
+    wstgId: WSTG-v42-ATHN-07
+    title: Test password policy
+    order: 5
+  - <<: *authn
+    id: web-test-password-reset
+    wstgId: WSTG-v42-ATHN-09
+    title: Test password change and reset
+    order: 6
+
+  - <<: *authz
+    id: web-test-directory-traversal
+    wstgId: WSTG-v42-ATHZ-01
+    title: Test directory traversal and file inclusion
+    order: 1
+  - <<: *authz
+    id: web-test-authorization-bypass
+    wstgId: WSTG-v42-ATHZ-02
+    title: Test authorization bypass
+    order: 2
+  - <<: *authz
+    id: web-test-privilege-escalation
+    wstgId: WSTG-v42-ATHZ-03
+    title: Test privilege escalation
+    order: 3
+  - <<: *authz
+    id: web-test-idor
+    wstgId: WSTG-v42-ATHZ-04
+    title: Test insecure direct object references
+    order: 4
+
+  - <<: *sess
+    id: web-test-session-schema
+    wstgId: WSTG-v42-SESS-01
+    title: Test session management schema
+    order: 1
+  - <<: *sess
+    id: web-test-cookie-attributes
+    wstgId: WSTG-v42-SESS-02
+    title: Test cookie attributes
+    order: 2
+  - <<: *sess
+    id: web-test-session-fixation
+    wstgId: WSTG-v42-SESS-03
+    title: Test session fixation
+    order: 3
+  - <<: *sess
+    id: web-test-exposed-session-variables
+    wstgId: WSTG-v42-SESS-04
+    title: Test exposed session variables
+    order: 4
+  - <<: *sess
+    id: web-test-csrf
+    wstgId: WSTG-v42-SESS-05
+    title: Test cross-site request forgery
+    order: 5
+  - <<: *sess
+    id: web-test-logout
+    wstgId: WSTG-v42-SESS-06
+    title: Test logout functionality
+    order: 6
+  - <<: *sess
+    id: web-test-session-timeout
+    wstgId: WSTG-v42-SESS-07
+    title: Test session timeout
+    order: 7
+
+  - <<: *inpv
+    id: web-test-reflected-xss
+    wstgId: WSTG-v42-INPV-01
+    title: Test reflected cross-site scripting
+    order: 1
+  - <<: *inpv
+    id: web-test-stored-xss
+    wstgId: WSTG-v42-INPV-02
+    title: Test stored cross-site scripting
+    order: 2
+  - <<: *inpv
+    id: web-test-parameter-pollution
+    wstgId: WSTG-v42-INPV-04
+    title: Test HTTP parameter pollution
+    order: 3
+  - <<: *inpv
+    id: web-test-sql-injection
+    wstgId: WSTG-v42-INPV-05
+    title: Test SQL injection
+    order: 4
+  - <<: *inpv
+    id: web-test-command-injection
+    wstgId: WSTG-v42-INPV-12
+    title: Test command injection
+    order: 5
+  - <<: *inpv
+    id: web-test-host-header-injection
+    wstgId: WSTG-v42-INPV-17
+    title: Test Host header injection
+    order: 6
+  - <<: *inpv
+    id: web-test-ssti
+    wstgId: WSTG-v42-INPV-18
+    title: Test server-side template injection
+    order: 7
+  - <<: *inpv
+    id: web-test-ssrf
+    wstgId: WSTG-v42-INPV-19
+    title: Test server-side request forgery
+    order: 8
+
+  - <<: *busl
+    id: web-test-business-data-validation
+    wstgId: WSTG-v42-BUSL-01
+    title: Test business logic data validation
+    order: 1
+  - <<: *busl
+    id: web-test-forged-requests
+    wstgId: WSTG-v42-BUSL-02
+    title: Test ability to forge requests
+    order: 2
+  - <<: *busl
+    id: web-test-integrity-checks
+    wstgId: WSTG-v42-BUSL-03
+    title: Test integrity checks
+    order: 3
+  - <<: *busl
+    id: web-test-function-limits
+    wstgId: WSTG-v42-BUSL-05
+    title: Test function-use limits
+    order: 4
+  - <<: *busl
+    id: web-test-workflow-circumvention
+    wstgId: WSTG-v42-BUSL-06
+    title: Test workflow circumvention
+    order: 5
+  - <<: *busl
+    id: web-test-unexpected-file-types
+    wstgId: WSTG-v42-BUSL-08
+    title: Test upload of unexpected file types
+    order: 6
+  - <<: *busl
+    id: web-test-malicious-files
+    wstgId: WSTG-v42-BUSL-09
+    title: Test upload of malicious files
+    order: 7
+
+  - <<: *clnt
+    id: web-test-dom-xss
+    wstgId: WSTG-v42-CLNT-01
+    title: Test DOM-based cross-site scripting
+    order: 1
+  - <<: *clnt
+    id: web-test-javascript-execution
+    wstgId: WSTG-v42-CLNT-02
+    title: Test JavaScript execution
+    order: 2
+  - <<: *clnt
+    id: web-test-html-injection
+    wstgId: WSTG-v42-CLNT-03
+    title: Test HTML injection
+    order: 3
+  - <<: *clnt
+    id: web-test-client-redirect
+    wstgId: WSTG-v42-CLNT-04
+    title: Test client-side URL redirects
+    order: 4
+  - <<: *clnt
+    id: web-test-cors
+    wstgId: WSTG-v42-CLNT-07
+    title: Test cross-origin resource sharing
+    order: 5
+  - <<: *clnt
+    id: web-test-clickjacking
+    wstgId: WSTG-v42-CLNT-09
+    title: Test clickjacking
+    order: 6
+  - <<: *clnt
+    id: web-test-websockets
+    wstgId: WSTG-v42-CLNT-10
+    title: Test WebSockets
+    order: 7
+  - <<: *clnt
+    id: web-test-web-messaging
+    wstgId: WSTG-v42-CLNT-11
+    title: Test web messaging
+    order: 8
+  - <<: *clnt
+    id: web-test-browser-storage
+    wstgId: WSTG-v42-CLNT-12
+    title: Test browser storage
+    order: 9
+

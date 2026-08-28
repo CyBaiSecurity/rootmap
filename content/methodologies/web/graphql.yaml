@@ -1,0 +1,48 @@
+version: "4.2"
+categories: []
+
+defaults:
+  graphql: &graphql
+    category: information-gathering
+    parent: web-identify-technologies
+    goal: Evaluate the exposed GraphQL surface using a controlled, evidence-driven workflow.
+    why: GraphQL endpoints can expose schema detail and authorization gaps through a single flexible interface.
+    checklist:
+      - Confirm the endpoint and establish a harmless baseline query.
+      - Record supported operations and observable error behavior.
+      - Continue only with tests appropriate to the discovered schema and authorization context.
+    lookFor:
+      - Schema disclosure, inconsistent authorization, excessive query depth, and unsafe mutations.
+    tools: [curl, burp-suite]
+    resources: [graphql-docs, portswigger-graphql]
+
+nodes:
+  - <<: *graphql
+    id: web-graphql-overview
+    title: GraphQL testing branch
+    order: 1
+    nextSteps: [web-graphql-identify-endpoint]
+  - <<: *graphql
+    id: web-graphql-identify-endpoint
+    title: Identify GraphQL endpoint
+    order: 2
+    nextSteps: [web-graphql-test-introspection]
+  - <<: *graphql
+    id: web-graphql-test-introspection
+    title: Test introspection
+    order: 3
+    nextSteps: [web-graphql-enumerate-schema]
+  - <<: *graphql
+    id: web-graphql-enumerate-schema
+    title: Enumerate schema
+    order: 4
+    nextSteps: [web-graphql-test-authorization]
+  - <<: *graphql
+    id: web-graphql-test-authorization
+    title: Test GraphQL authorization
+    order: 5
+    nextSteps: [web-graphql-test-query-controls]
+  - <<: *graphql
+    id: web-graphql-test-query-controls
+    title: Test query depth and mutations
+    order: 6
