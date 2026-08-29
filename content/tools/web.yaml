@@ -1,35 +1,148 @@
 tools:
   - id: curl
     name: curl
-    description: Inspect and reproduce HTTP requests from the command line.
+    description: Inspect, construct, and replay HTTP requests from the command line.
     officialUrl: https://curl.se/docs/
     examples:
       - context: Inspect response headers
         syntax: curl -I https://target.example
       - context: Send a GraphQL request
-        syntax: "curl https://target.example/graphql -H 'Content-Type: application/json' --data '{\"query\":\"{__typename}\"}'"
+        syntax: "curl https://target.example/graphql -H 'Content-Type: application/json'
+          --data '{\"query\":\"{__typename}\"}'"
+      - context: Test path traversal with raw URL
+        syntax: curl --path-as-is https://target.example/../../../../etc/passwd
+      - context: Test SSRF via custom Host header
+        syntax: "curl -H 'Host: 127.0.0.1' https://target.example/admin"
   - id: burp-suite
     name: Burp Suite
-    description: Intercept, inspect, and replay web application traffic.
+    description: Intercept, inspect, replay, and automate web application security testing.
     officialUrl: https://portswigger.net/burp/documentation
-    examples: []
+    examples:
+      - context: Proxy HTTP traffic through local listener
+        syntax: curl -x http://127.0.0.1:8080 -k https://target.example
   - id: nmap
     name: Nmap
-    description: Discover exposed services and collect service fingerprints.
+    description: Discover exposed network ports, fingerprint web services, and run
+      HTTP discovery scripts.
     officialUrl: https://nmap.org/book/man.html
     examples:
       - context: Detect service versions
         syntax: nmap -sV target.example
+      - context: Scan web ports with HTTP enumeration scripts
+        syntax: nmap -p 80,443 -sV --script http-enum,http-headers,http-methods
+          target.example
   - id: ffuf
     name: ffuf
-    description: Enumerate content and virtual hosts with controlled wordlist fuzzing.
+    description: Fast web fuzzer for directory discovery, virtual host enumeration,
+      and parameter fuzzing.
     officialUrl: https://github.com/ffuf/ffuf
     examples:
       - context: Content discovery
-        syntax: ffuf -u https://target.example/FUZZ -w wordlist.txt
+        syntax: ffuf -u https://target.example/FUZZ -w
+          /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+      - context: Virtual host enumeration
+        syntax: 'ffuf -u http://target.example -H "Host: FUZZ.target.example" -w
+          /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -fs
+          1234'
+      - context: Parameter discovery
+        syntax: ffuf -u https://target.example/page?FUZZ=test -w
+          /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc
+          200
   - id: wappalyzer
     name: Wappalyzer
-    description: Identify web technologies from observable application fingerprints.
+    description: Identify web technologies, frameworks, CMSs, and server components
+      from observable fingerprints.
     officialUrl: https://www.wappalyzer.com/
-    examples: []
-
+    examples:
+      - context: Analyze web technologies via CLI
+        syntax: wappalyzer https://target.example
+  - id: whatweb
+    name: WhatWeb
+    description: Next-generation web scanner identifying CMSs, blogging platforms,
+      JavaScript libraries, and server versions.
+    officialUrl: https://github.com/urbanadventurer/WhatWeb
+    examples:
+      - context: Aggressive technology identification
+        syntax: whatweb -a 3 https://target.example
+  - id: gobuster
+    name: Gobuster
+    description: High-speed URI directory, DNS subdomain, and virtual host
+      brute-forcing tool written in Go.
+    officialUrl: https://github.com/OJ/gobuster
+    examples:
+      - context: Directory brute-forcing
+        syntax: gobuster dir -u https://target.example -w
+          /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+          -t 50
+      - context: Virtual host discovery
+        syntax: gobuster vhost -u https://target.example -w
+          /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+          --append-domain
+  - id: feroxbuster
+    name: feroxbuster
+    description: Fast, simple, recursive content and directory discovery tool
+      written in Rust.
+    officialUrl: https://github.com/epi052/feroxbuster
+    examples:
+      - context: Recursive directory discovery
+        syntax: feroxbuster -u https://target.example -w
+          /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+  - id: nikto
+    name: Nikto
+    description: Comprehensive web server scanner for dangerous files, outdated
+      server software, and misconfigurations.
+    officialUrl: https://github.com/sullo/nikto
+    examples:
+      - context: Web server vulnerability scan
+        syntax: nikto -h https://target.example
+  - id: sqlmap
+    name: sqlmap
+    description: Automatic SQL injection detection, exploitation, and database
+      takeover engine.
+    officialUrl: https://sqlmap.org/
+    examples:
+      - context: Test injection on URL parameter
+        syntax: sqlmap -u "https://target.example/item?id=1" --batch --dbs
+      - context: Test injection from captured HTTP request file
+        syntax: sqlmap -r request.txt --batch --dbs
+  - id: jwt-tool
+    name: jwt_tool
+    description: Comprehensive toolkit for validating, forging, scanning, and
+      tampering with JSON Web Tokens.
+    officialUrl: https://github.com/ticarpi/jwt_tool
+    examples:
+      - context: Scan JWT token for common vulnerabilities
+        syntax: 'python3 jwt_tool.py <JWT_TOKEN> -t https://target.example/api/profile
+          -rh "Authorization: Bearer <JWT_TOKEN>" -M at'
+      - context: Test none algorithm signature bypass
+        syntax: python3 jwt_tool.py <JWT_TOKEN> -X a
+  - id: hashcat
+    name: Hashcat
+    description: World's fastest password and hash recovery utility supporting
+      rule-based attacks and multiple hash types.
+    officialUrl: https://hashcat.net/hashcat/
+    examples:
+      - context: Crack bcrypt web hashes (mode 3200)
+        syntax: hashcat -m 3200 hashes.txt /usr/share/wordlists/rockyou.txt
+      - context: Crack JWT secret key (mode 16500)
+        syntax: hashcat -m 16500 jwt.txt /usr/share/wordlists/rockyou.txt
+  - id: hydra
+    name: Hydra
+    description: Fast network logon cracker supporting HTTP GET/POST form
+      brute-forcing and Basic authentication.
+    officialUrl: https://github.com/vanhauser-thc/thc-hydra
+    examples:
+      - context: Brute-force HTTP POST login form
+        syntax: hydra -l admin -P /usr/share/wordlists/rockyou.txt target.example
+          http-post-form "/login:username=^USER^&password=^PASS^:Invalid"
+      - context: Brute-force HTTP Basic Authentication
+        syntax: hydra -l admin -P /usr/share/wordlists/rockyou.txt target.example
+          http-get /admin
+  - id: cewl
+    name: CeWL
+    description: Custom wordlist generator spidering target website content for
+      domain-specific terminology.
+    officialUrl: https://github.com/digininja/CeWL
+    examples:
+      - context: Generate wordlist from website content
+        syntax: cewl https://target.example -w custom-wordlist.txt -d 3 -m 5

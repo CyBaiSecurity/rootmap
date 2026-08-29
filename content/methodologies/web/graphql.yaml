@@ -1,48 +1,222 @@
 version: "4.2"
 categories: []
-
 defaults:
-  graphql: &graphql
+  graphql:
     category: information-gathering
     parent: web-identify-technologies
-    goal: Evaluate the exposed GraphQL surface using a controlled, evidence-driven workflow.
-    why: GraphQL endpoints can expose schema detail and authorization gaps through a single flexible interface.
+    goal: Evaluate the exposed GraphQL surface using a controlled, evidence-driven
+      workflow covering endpoint identification, schema recovery, authorization
+      validation, and query depth controls.
+    why: GraphQL endpoints can expose schema detail, hidden data fields, and
+      authorization gaps through a single flexible interface.
     checklist:
       - Confirm the endpoint and establish a harmless baseline query.
       - Record supported operations and observable error behavior.
-      - Continue only with tests appropriate to the discovered schema and authorization context.
+      - Continue only with tests appropriate to the discovered schema and
+        authorization context.
     lookFor:
-      - Schema disclosure, inconsistent authorization, excessive query depth, and unsafe mutations.
-    tools: [curl, burp-suite]
-    resources: [graphql-docs, portswigger-graphql]
-
+      - Schema disclosure, inconsistent authorization, excessive query depth,
+        and unsafe mutations.
+    tools:
+      - curl
+      - burp-suite
+    resources:
+      - graphql-docs
+      - portswigger-graphql
 nodes:
-  - <<: *graphql
-    id: web-graphql-overview
+  - id: web-graphql-overview
     title: GraphQL testing branch
+    category: information-gathering
+    parent: web-identify-technologies
     order: 1
-    nextSteps: [web-graphql-identify-endpoint]
-  - <<: *graphql
-    id: web-graphql-identify-endpoint
+    goal: Evaluate the exposed GraphQL surface using a structured, evidence-driven
+      workflow covering endpoint identification, schema recovery, authorization
+      validation, and query depth controls.
+    why: GraphQL endpoints combine multiple data models and operations into a single
+      endpoint, where misconfigurations can expose the entire backend schema and
+      bypass object-level access controls.
+    checklist:
+      - Confirm the GraphQL endpoint and establish a baseline benign query ('{
+        __typename }').
+      - Determine introspection status and supported HTTP request methods (GET,
+        POST with application/json, POST with application/graphql,
+        x-www-form-urlencoded).
+      - Map queries, mutations, and custom types to guide subsequent
+        authorization and injection tests.
+    lookFor:
+      - Disclosed GraphQL endpoints, active introspection, detailed field-level
+        error messages, and unauthenticated administrative operations.
+    tools:
+      - curl
+      - burp-suite
+    resources:
+      - graphql-docs
+      - portswigger-graphql
+      - htb-web-challenges
+    nextSteps:
+      - web-graphql-identify-endpoint
+    findings: []
+  - id: web-graphql-identify-endpoint
     title: Identify GraphQL endpoint
+    category: information-gathering
+    parent: web-identify-technologies
     order: 2
-    nextSteps: [web-graphql-test-introspection]
-  - <<: *graphql
-    id: web-graphql-test-introspection
+    goal: Locate all active GraphQL interfaces across standard and non-standard URL
+      paths and HTTP methods.
+    why: GraphQL endpoints can expose schema detail and authorization gaps through a
+      single flexible interface.
+    checklist:
+      - Probe common GraphQL path endpoints (/graphql, /api/graphql,
+        /v1/graphql, /graphql.php, /api, /query, /v1/api).
+      - "Send probe queries using POST with Content-Type application/json
+        payload '{\"query\": \"{__typename}\"}'."
+      - Test alternative HTTP methods (GET query string '?query={__typename}',
+        POST with URL-encoded parameters) if POST JSON is blocked.
+      - Inspect client-side JavaScript bundle files for GraphQL client
+        configurations (Apollo Client, Relay, Urql) disclosing backend query
+        endpoints.
+    lookFor:
+      - HTTP 200 responses containing '{"data":{"__typename":"Query"}}' or
+        syntax error responses containing GraphQL error structures
+        ('{"errors":[{"message":...}]}').
+    tools:
+      - curl
+      - burp-suite
+      - ffuf
+    resources:
+      - graphql-docs
+      - portswigger-graphql
+    nextSteps:
+      - web-graphql-test-introspection
+    findings: []
+  - id: web-graphql-test-introspection
     title: Test introspection
+    category: information-gathering
+    parent: web-identify-technologies
     order: 3
-    nextSteps: [web-graphql-enumerate-schema]
-  - <<: *graphql
-    id: web-graphql-enumerate-schema
+    goal: Determine whether GraphQL schema introspection is enabled, allowing
+      complete recovery of types, queries, mutations, and fields.
+    why: Introspection provides a full map of the backend data model and available
+      API operations.
+    checklist:
+      - Submit standard introspection query
+        ('{"query":"{__schema{types{name,fields{name}}}}"}') via POST and GET.
+      - If full introspection is blocked, test partial schema discovery via
+        field suggestions (e.g., submitting typo query '{ user { passwor } }' to
+        trigger "Did you mean 'password'?" suggestions).
+      - "Test introspection bypasses (adding whitespace/newlines around
+        '__schema', using aliases '{ test: __schema { types { name } } }', or
+        switching from POST to GET)."
+      - Check for exposed GraphQL IDE interfaces (GraphQL Playground, GraphiQL,
+        Altair) at paths like /graphql/playground, /graphiql, /altair.
+    lookFor:
+      - Complete schema responses returning all types and queries, informative
+        field suggestions revealing hidden field names, and enabled interactive
+        GraphiQL playgrounds.
+    tools:
+      - curl
+      - burp-suite
+    resources:
+      - graphql-docs
+      - portswigger-graphql
+      - htb-web-challenges
+    nextSteps:
+      - web-graphql-enumerate-schema
+    findings: []
+  - id: web-graphql-enumerate-schema
     title: Enumerate schema
+    category: information-gathering
+    parent: web-identify-technologies
     order: 4
-    nextSteps: [web-graphql-test-authorization]
-  - <<: *graphql
-    id: web-graphql-test-authorization
+    goal: Extract and analyze the full GraphQL schema to identify sensitive queries,
+      administrative mutations, and hidden data fields.
+    why: Full schema extraction highlights high-value operations and hidden objects
+      that lack authorization enforcement.
+    checklist:
+      - Dump the complete schema structure using introspection queries or tools
+        like Clairvoyance and GraphQL Voyager.
+      - Review all exposed Query operations for sensitive data retrieval (e.g.,
+        allUsers, systemLogs, paymentDetails, exportData).
+      - Review all Mutation operations for state modification (e.g.,
+        updateUserRole, resetPassword, deleteAccount, uploadFile).
+      - Inspect custom object types and scalar fields for private attributes
+        (e.g., passwordHash, ssn, apiKey, internalId, role).
+    lookFor:
+      - Sensitive administrative queries, unadvertised mutations, exposed
+        credential fields, and internal database object mappings.
+    tools:
+      - curl
+      - burp-suite
+    resources:
+      - graphql-docs
+      - portswigger-graphql
+      - htb-web-challenges
+    nextSteps:
+      - web-graphql-test-authorization
+    findings: []
+  - id: web-graphql-test-authorization
     title: Test GraphQL authorization
+    category: information-gathering
+    parent: web-identify-technologies
     order: 5
-    nextSteps: [web-graphql-test-query-controls]
-  - <<: *graphql
-    id: web-graphql-test-query-controls
+    goal: Verify that individual GraphQL queries, mutations, and nested fields
+      enforce object-level and role-based authorization.
+    why: Field-level resolvers often lack individual permission checks, permitting
+      unauthorized access to sensitive relationships.
+    checklist:
+      - Execute administrative queries (e.g., 'query { users { id username email
+        role } }') with an unauthenticated or low-privilege token.
+      - "Test IDOR on parameterized queries (e.g., 'query { user(id: 1) { email
+        privateNotes } }' vs 'id: 2')."
+      - "Test mutations modifying other users' resources (e.g., 'mutation {
+        updateUser(id: 1, role: \"admin\") { success } }')."
+      - Test nested field authorization where top-level object is authorized but
+        nested relationships leak restricted data (e.g., 'query { myProfile {
+        organization { allMembers { salary } } } }').
+    lookFor:
+      - Unauthorized data disclosure via unauthenticated queries, IDOR in query
+        parameters, privilege escalation via mutations (as in HTB Passman), and
+        authorization gaps in nested resolvers.
+    tools:
+      - burp-suite
+      - curl
+    resources:
+      - graphql-docs
+      - portswigger-graphql
+      - portswigger-access-control
+      - htb-web-challenges
+    nextSteps:
+      - web-graphql-test-query-controls
+    findings: []
+  - id: web-graphql-test-query-controls
     title: Test query depth and mutations
+    category: information-gathering
+    parent: web-identify-technologies
     order: 6
+    goal: Assess protections against Denial of Service (DoS) through recursive
+      circular queries, batching attacks, and injection within resolvers.
+    why: Unbounded GraphQL query depth and batching allow denial of service and
+      rapid brute-force attacks through single HTTP requests.
+    checklist:
+      - Test deeply nested circular queries (e.g., 'query { author { posts {
+        author { posts { author { name } } } } } }') to verify query depth
+        limiting.
+      - "Test query batching and aliasing attacks (submitting multiple aliased
+        queries 'a1: user(id:1), a2: user(id:2)' in a single request) to bypass
+        rate limiting and brute-force passwords/tokens."
+      - Test SQL injection, NoSQL injection, and command injection inside
+        GraphQL query arguments and filter variables.
+      - Test request size limits and maximum field cost analysis.
+    lookFor:
+      - Server timeouts or 500 errors from deep circular queries, successful
+        password brute-forcing via query aliasing/batching, and resolver-level
+        injection vulnerabilities.
+    tools:
+      - burp-suite
+      - curl
+    resources:
+      - graphql-docs
+      - portswigger-graphql
+      - htb-web-challenges
+    nextSteps: []
+    findings: []
