@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { projectContent } from './projectContent'
 
 describe('project content', () => {
-  it('covers each approved WSTG category with navigable checks', () => {
+  it('covers each approved WSTG and DFIR category with navigable checks', () => {
     const content = projectContent
 
     expect(content.version).toBe('4.2')
@@ -16,6 +16,17 @@ describe('project content', () => {
       'Input Validation',
       'Business Logic',
       'Client-Side',
+      'Collection',
+      'Examination',
+      'Analysis',
+      'Reporting',
+      'Disk / Filesystem',
+      'Memory',
+      'Network / PCAP',
+      'Windows Artifacts',
+      'Linux Artifacts',
+      'Logs',
+      'Malware Triage',
     ])
     for (const category of content.categories) {
       expect(content.nodes.some(({ category: categoryId }) => categoryId === category.id)).toBe(
@@ -35,14 +46,18 @@ describe('project content', () => {
     }
   })
 
-  it('uses immutable WSTG v4.2 links for methodology resources', () => {
+  it('uses immutable WSTG v4.2 links for web methodology resources and valid URLs for DFIR', () => {
     const content = projectContent
     const methodologyResources = content.resources.filter(({ role }) => role === 'Methodology')
 
     expect(methodologyResources.length).toBeGreaterThan(0)
     for (const resource of methodologyResources) {
-      expect(resource.url, resource.id).toContain('/v42/')
-      expect(resource.url, resource.id).not.toContain('/stable/')
+      if (resource.id.startsWith('wstg-')) {
+        expect(resource.url, resource.id).toContain('/v42/')
+        expect(resource.url, resource.id).not.toContain('/stable/')
+      } else {
+        expect(resource.url, resource.id).toMatch(/^https:\/\//)
+      }
     }
   })
 
@@ -57,4 +72,41 @@ describe('project content', () => {
       'GraphQL testing branch',
     )
   })
+
+  it('contains valid DFIR methodology nodes and finding connections', () => {
+    const content = projectContent
+    const dfirNodes = content.nodes.filter(({ id }) => id.startsWith('dfir-'))
+
+    expect(dfirNodes.length).toBeGreaterThanOrEqual(30)
+
+    const toolIds = new Set(content.tools.map(({ id }) => id))
+    const resourceIds = new Set(content.resources.map(({ id }) => id))
+    const nodeIds = new Set(content.nodes.map(({ id }) => id))
+
+    for (const node of dfirNodes) {
+      for (const toolId of node.tools) {
+        expect(toolIds.has(toolId), `Tool ${toolId} referenced in ${node.id} must exist`).toBe(true)
+      }
+      for (const resourceId of node.resources) {
+        expect(
+          resourceIds.has(resourceId),
+          `Resource ${resourceId} referenced in ${node.id} must exist`,
+        ).toBe(true)
+      }
+      for (const nextStep of node.nextSteps) {
+        expect(nodeIds.has(nextStep), `NextStep ${nextStep} in ${node.id} must exist`).toBe(true)
+      }
+      for (const finding of node.findings) {
+        for (const dest of finding.next) {
+          expect(nodeIds.has(dest), `Finding dest ${dest} in ${finding.id} must exist`).toBe(true)
+        }
+      }
+    }
+
+    const memoryDumpFinding = content.nodes
+      .flatMap(({ findings }) => findings)
+      .find(({ id }) => id === 'dfir-collect-memory-dump-captured')
+    expect(memoryDumpFinding?.next).toContain('dfir-mem-triage')
+  })
 })
+

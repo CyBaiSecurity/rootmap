@@ -1,0 +1,102 @@
+tools:
+  - id: sleuth-kit
+    name: The Sleuth Kit (TSK)
+    description: Library and command line tools for deep filesystem forensics and volume analysis.
+    officialUrl: https://www.sleuthkit.org/sleuthkit/
+    examples:
+      - context: Display partition table layout
+        syntax: mmls /path/to/evidence.img
+      - context: List deleted and active directory entries recursively
+        syntax: fls -r -p -o 2048 /path/to/evidence.img
+      - context: Extract file content by inode or MFT record number
+        syntax: icat -o 2048 /path/to/evidence.img 14280 > extracted_file.bin
+      - context: Display unallocated disk blocks for carving
+        syntax: blkls -o 2048 /path/to/evidence.img > unallocated.raw
+  - id: volatility
+    name: Volatility
+    description: Advanced memory forensics framework for extracting volatile digital artifacts from RAM dumps.
+    officialUrl: https://volatilityfoundation.org/
+    examples:
+      - context: List active processes in memory dump
+        syntax: python3 vol.py -f memory.raw windows.pslist
+      - context: Scan for hidden or unlinked processes via DKOM pool scanning
+        syntax: python3 vol.py -f memory.raw windows.psscan
+      - context: Dump process memory executable and memory sections
+        syntax: python3 vol.py -f memory.raw -o ./dump windows.dumpfiles --pid 1420
+      - context: Enumerate active and closed network connections
+        syntax: python3 vol.py -f memory.raw windows.netscan
+  - id: tshark
+    name: TShark
+    description: Terminal-based network packet analyzer and protocol dissection engine.
+    officialUrl: https://www.wireshark.org/docs/man-pages/tshark.html
+    examples:
+      - context: Extract DNS queries and resolved IP addresses from PCAP
+        syntax: "tshark -r capture.pcap -Y 'dns.flags.response == 1' -T fields -e ip.src -e dns.qry.name -e dns.a"
+      - context: Extract HTTP request methods, hosts, and URIs
+        syntax: "tshark -r capture.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e http.request.uri"
+      - context: Export reconstructed HTTP stream objects from capture
+        syntax: tshark -r capture.pcap --export-objects "http,./exported_http"
+  - id: exiftool
+    name: ExifTool
+    description: Read, write, and analyze metadata across files, documents, and multimedia formats.
+    officialUrl: https://exiftool.org/
+    examples:
+      - context: Extract all metadata tags and timestamps
+        syntax: exiftool -a -u -g1 suspicious_file.jpg
+      - context: Extract embedded thumbnail or preview image
+        syntax: exiftool -b -ThumbnailImage evidence.jpg > thumbnail.jpg
+  - id: binwalk
+    name: Binwalk
+    description: Fast firmware analysis and file carving tool to identify embedded files, filesystems, and compressed code.
+    officialUrl: https://github.com/ReFirmLabs/binwalk
+    examples:
+      - context: Scan binary image for embedded signatures and offsets
+        syntax: binwalk firmware.bin
+      - context: Recursively extract embedded file systems and compressed archives
+        syntax: binwalk -Me firmware.bin
+  - id: foremost
+    name: Foremost
+    description: Forensic data recovery program to carve files based on headers, footers, and data structures.
+    officialUrl: https://foremost.sourceforge.net/
+    examples:
+      - context: Carve specific file types from raw disk image or unallocated space
+        syntax: foremost -t png,jpg,pdf,docx -i unallocated.raw -o ./recovered
+  - id: plaso
+    name: Plaso (log2timeline)
+    description: Super-timeline engine that parses timestamps and events across operating system and application artifacts.
+    officialUrl: https://plaso.readthedocs.io/
+    examples:
+      - context: Extract events from storage image into a Plaso storage container
+        syntax: log2timeline.py --parsers "win7,mft,evt,registry" timeline.plaso disk.raw
+      - context: Filter and export super-timeline into CSV format with psort
+        syntax: "psort.py -o l2tcsv -w timeline.csv timeline.plaso \"date > '2026-01-01 00:00:00'\""
+  - id: velociraptor
+    name: Velociraptor
+    description: Endpoint visibility, digital forensics triage, and artifact collection platform using VQL queries.
+    officialUrl: https://docs.velociraptor.app/
+    examples:
+      - context: Collect Windows triage artifact pack offline via CLI
+        syntax: velociraptor artifacts collect Windows.KapeFiles.Targets --output triage.zip
+      - context: Query active network connections on live endpoint
+        syntax: velociraptor query "SELECT * FROM Windows.Network.Netstat()"
+  - id: autopsy
+    name: Autopsy
+    description: Graphical digital forensics platform and interface to The Sleuth Kit for comprehensive disk and case investigation.
+    officialUrl: https://www.autopsy.com/
+    examples:
+      - context: Run automated ingest modules on disk image in command line mode
+        syntax: autopsy64.exe --nosplash --caseDir C:\Cases\Case01 --addImage D:\evidence.e01
+  - id: bulk-extractor
+    name: Bulk Extractor
+    description: High-speed feature extraction tool scanning raw disk images or memory without parsing filesystem structures.
+    officialUrl: https://github.com/simsong/bulk_extractor
+    examples:
+      - context: Extract email addresses, URLs, IP addresses, and credit card numbers from raw media
+        syntax: bulk_extractor -o ./bulk_out -E email -E url -E ip disk.raw
+  - id: photorec
+    name: PhotoRec
+    description: Signature-based file recovery utility designed to carve lost files and multimedia from unallocated storage.
+    officialUrl: https://www.cgsecurity.org/wiki/PhotoRec
+    examples:
+      - context: Recover files from partition image in non-interactive batch mode
+        syntax: photorec /cmd disk.img search

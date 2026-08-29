@@ -1,0 +1,81 @@
+resources:
+  - id: nist-800-86
+    title: NIST SP 800-86 — Guide to Integrating Forensic Techniques into Incident Response
+    url: https://csrc.nist.gov/publications/detail/sp/800-86/final
+    tier: 1
+    role: Methodology
+  - id: nist-800-61r3
+    title: NIST SP 800-61 Rev. 3 — Incident Response Recommendations and Considerations for Cybersecurity Risk Management
+    url: https://csrc.nist.gov/publications/detail/sp/800-61/rev-3/final
+    tier: 1
+    role: Methodology
+  - id: sleuth-kit-docs
+    title: The Sleuth Kit (TSK) Documentation & Reference
+    url: https://www.sleuthkit.org/sleuthkit/docs.php
+    tier: 2
+    role: Documentation
+  - id: volatility-docs
+    title: Volatility 3 Command Reference and Documentation
+    url: https://volatility3.readthedocs.io/
+    tier: 2
+    role: Documentation
+  - id: tshark-docs
+    title: TShark Network Protocol Analyzer Manual
+    url: https://www.wireshark.org/docs/man-pages/tshark.html
+    tier: 2
+    role: Documentation
+  - id: exiftool-docs
+    title: ExifTool Documentation and Tag Reference
+    url: https://exiftool.org/
+    tier: 2
+    role: Documentation
+  - id: velociraptor-docs
+    title: Velociraptor Digital Forensics & Incident Response Documentation
+    url: https://docs.velociraptor.app/
+    tier: 2
+    role: Documentation
+  - id: plaso-docs
+    title: Plaso (log2timeline) Documentation
+    url: https://plaso.readthedocs.io/
+    tier: 2
+    role: Documentation
+  - id: autopsy-docs
+    title: Autopsy User Documentation & Modules Guide
+    url: https://www.autopsy.com/support/
+    tier: 2
+    role: Documentation
+  - id: bulk-extractor-docs
+    title: Bulk Extractor Documentation & Usage Guide
+    url: https://github.com/simsong/bulk_extractor/wiki
+    tier: 2
+    role: Documentation
+  - id: photorec-docs
+    title: PhotoRec Step-by-Step Data Recovery Guide
+    url: https://www.cgsecurity.org/wiki/PhotoRec_Step_By_Step
+    tier: 2
+    role: Documentation
+  - id: sans-dfir-cheatsheets
+    title: SANS DFIR Posters and Investigative Cheat Sheets
+    url: https://www.sans.org/posters/
+    tier: 3
+    role: Learning
+  - id: dfir-blog
+    title: DFIR.Training & Community Reference Blog
+    url: https://www.dfir.training/
+    tier: 3
+    role: Learning
+  - id: sans-dfir-finds
+    title: SANS SIFT Workstation & DFIR Artifact Reference
+    url: https://www.sans.org/tools/sift-workstation/
+    tier: 3
+    role: Learning
+  - id: cyberdefenders
+    title: CyberDefenders — Blue Team Cyber Security Training & Challenges
+    url: https://cyberdefenders.org/
+    tier: 4
+    role: Practice
+  - id: htb-sherlocks
+    title: Hack The Box Sherlocks — Incident Response & Defensive Labs
+    url: https://www.hackthebox.com/
+    tier: 4
+    role: Practice

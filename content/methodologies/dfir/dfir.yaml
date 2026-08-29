@@ -1,0 +1,1303 @@
+version: "4.2"
+categories:
+  - id: dfir-collection
+    title: Collection
+    order: 1
+  - id: dfir-examination
+    title: Examination
+    order: 2
+  - id: dfir-analysis
+    title: Analysis
+    order: 3
+  - id: dfir-reporting
+    title: Reporting
+    order: 4
+  - id: dfir-disk
+    title: Disk / Filesystem
+    order: 5
+  - id: dfir-memory
+    title: Memory
+    order: 6
+  - id: dfir-network
+    title: Network / PCAP
+    order: 7
+  - id: dfir-windows
+    title: Windows Artifacts
+    order: 8
+  - id: dfir-linux
+    title: Linux Artifacts
+    order: 9
+  - id: dfir-logs
+    title: Logs
+    order: 10
+  - id: dfir-malware
+    title: Malware Triage
+    order: 11
+nodes:
+  # ============================================================================
+  # 1. NIST SP 800-86 COLLECTION PHASE
+  # ============================================================================
+  - id: dfir-collect-preserve-evidence
+    title: Preserve digital evidence & chain of custody
+    category: dfir-collection
+    order: 1
+    goal: Identify evidence sources, isolate affected systems, document physical and logical states, and establish an unbroken chain of custody per NIST SP 800-86.
+    why: Improper handling, undocumented acquisition steps, or unrecorded timestamps can lead to evidence spoliation and render findings legally inadmissible.
+    checklist:
+      - Document system state, physical location, serial numbers, connected peripherals, and network connections.
+      - Establish physical and logical isolation (disconnect network cables, disable Wi-Fi/Bluetooth, isolate virtual machines).
+      - Maintain a contemporaneous chain of custody log recording custodian, timestamp, location, and handling reason.
+      - Calculate and record baseline cryptographic hashes (SHA-256) of all acquired media and storage containers.
+    lookFor:
+      - Live running processes, active network connections, anti-forensic indicators, encrypted volumes, and hardware tampering.
+    tools:
+      - velociraptor
+    resources:
+      - nist-800-86
+      - nist-800-61r3
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-collect-live-target-detected
+        title: Live system running with volatile memory
+        next:
+          - dfir-collect-live-triage
+    nextSteps:
+      - dfir-collect-live-triage
+      - dfir-collect-forensic-disk-imaging
+
+  - id: dfir-collect-live-triage
+    title: Live system triage & memory acquisition
+    category: dfir-collection
+    parent: dfir-collect-preserve-evidence
+    order: 2
+    goal: Acquire volatile state (RAM, open network connections, running processes, logged-in sessions) following RFC 3227 Order of Volatility before power disruption.
+    why: RAM contains encryption keys, injected memory payloads, decrypted network communications, and process states that are lost upon reboot or shutdown.
+    checklist:
+      - Deploy minimal-footprint triage collection binaries via trusted external write-protected media.
+      - Capture full volatile physical RAM image into raw or AFF4 format using kernel driver acquisition.
+      - Collect live ephemeral state including active TCP/UDP sockets, process execution tables, and open file handles.
+      - Record current system time, UTC offset, and NTP synchronization status.
+    lookFor:
+      - Live RAM capture files, unusual background processes, remote management tunnels, and uncommitted cryptographic material.
+    tools:
+      - velociraptor
+      - volatility
+    resources:
+      - nist-800-86
+      - velociraptor-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-collect-memory-dump-captured
+        title: Volatile memory dump acquired
+        next:
+          - dfir-mem-triage
+      - id: dfir-collect-pcap-capture-identified
+        title: Network packet capture available
+        next:
+          - dfir-pcap-triage
+    nextSteps:
+      - dfir-collect-forensic-disk-imaging
+      - dfir-mem-triage
+
+  - id: dfir-collect-forensic-disk-imaging
+    title: Forensic dead-box disk imaging & hashing
+    category: dfir-collection
+    parent: dfir-collect-preserve-evidence
+    order: 3
+    goal: Create bit-stream forensic images (E01 / raw DD) of non-volatile storage media using hardware write blockers and cryptographic verification.
+    why: Bit-stream images capture allocated data, unallocated clusters, slack space, and partition metadata without modifying the original source disk.
+    checklist:
+      - Connect target drives through validated hardware write-blocking bridges.
+      - Generate bit-stream raw (DD) or Expert Witness Format (E01) images with embedded case metadata.
+      - Compute acquisition SHA-256 and MD5 hashes simultaneously and compare against source read hashes.
+      - Store master images on secure, write-restricted storage and produce working duplicate copies for analysis.
+    lookFor:
+      - Bit-for-bit hash match between physical drive and forensic image, bad sector logs, and hidden host protected areas (HPA/DCO).
+    tools:
+      - sleuth-kit
+      - autopsy
+    resources:
+      - nist-800-86
+      - sleuth-kit-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-collect-disk-image-created
+        title: Forensic disk image captured
+        next:
+          - dfir-disk-verify-image
+    nextSteps:
+      - dfir-exam-evidence-verification
+      - dfir-disk-verify-image
+
+  # ============================================================================
+  # 2. NIST SP 800-86 EXAMINATION PHASE
+  # ============================================================================
+  - id: dfir-exam-evidence-verification
+    title: Verify evidence integrity & triage preparation
+    category: dfir-examination
+    order: 1
+    goal: Validate image integrity against initial custody hashes, unpack forensic containers, and index files for non-destructive examination.
+    why: Working directly on original evidence or unverified duplicates risks contamination and invalidates forensic conclusions.
+    checklist:
+      - Verify SHA-256 checksums of working forensic image copies against original custody documentation.
+      - Mount image copies read-only using loopback or forensic mounting frameworks (e.g. ewfmount / affuse).
+      - Extract partition tables, filesystem superblocks, and volume headers.
+      - Catalog high-level evidence containers (disk images, memory dumps, PCAP files, log archives).
+    lookFor:
+      - Verification hash match, volume encryption status (BitLocker, LUKS, APFS), and partition boundary anomalies.
+    tools:
+      - sleuth-kit
+      - autopsy
+    resources:
+      - nist-800-86
+      - sleuth-kit-docs
+      - autopsy-docs
+    findings:
+      - id: dfir-exam-disk-evidence-routed
+        title: Disk image ready for examination
+        next:
+          - dfir-disk-verify-image
+      - id: dfir-exam-memory-evidence-routed
+        title: Memory dump ready for examination
+        next:
+          - dfir-mem-triage
+      - id: dfir-exam-network-evidence-routed
+        title: PCAP capture ready for examination
+        next:
+          - dfir-pcap-triage
+    nextSteps:
+      - dfir-exam-super-timeline-extraction
+      - dfir-disk-verify-image
+
+  - id: dfir-exam-super-timeline-extraction
+    title: Super-timeline generation & event extraction
+    category: dfir-examination
+    parent: dfir-exam-evidence-verification
+    order: 2
+    goal: Extract normalized chronological event records across filesystem MACB timestamps, system logs, registry hives, and application artifacts.
+    why: Super-timelines correlate disparate events into a single unified temporal stream, exposing attacker activity before and after an incident.
+    checklist:
+      - Run log2timeline / Plaso parsers against mounted disk images, registry hives, and event logs.
+      - Normalize all parsed timestamps to UTC and filter by target incident time windows.
+      - Extract MACB (Modified, Accessed, Changed, Born) metadata from filesystem master records.
+      - Generate indexed CSV/database timeline exports for targeted querying.
+    lookFor:
+      - Time clusters of file creation, rapid timestamp modifications (timestomping), user login spikes, and service creation events.
+    tools:
+      - plaso
+      - sleuth-kit
+    resources:
+      - nist-800-86
+      - plaso-docs
+      - dfir-blog
+    findings:
+      - id: dfir-exam-log-anomaly-found
+        title: Log anomalies identified in timeline
+        next:
+          - dfir-logs-triage
+    nextSteps:
+      - dfir-anal-hypotheses-correlation
+      - dfir-logs-triage
+
+  # ============================================================================
+  # 3. NIST SP 800-86 ANALYSIS PHASE
+  # ============================================================================
+  - id: dfir-anal-hypotheses-correlation
+    title: Multi-source correlation & attack attribution
+    category: dfir-analysis
+    order: 1
+    goal: Correlate timeline artifacts across disk, memory, network, and logs to test incident hypotheses and reconstruct adversary actions.
+    why: Isolated forensic indicators can be misleading; multi-source corroboration establishes causality and proves adversary intent and capability.
+    checklist:
+      - Cross-reference memory injection timestamps with disk file writes and network connection logs.
+      - Map observed attacker techniques to MITRE ATT&CK tactics and adversary procedures.
+      - Evaluate competing hypotheses against verifiable technical forensic evidence.
+      - Validate whether observed activities stem from authorized administrative actions or external compromise.
+    lookFor:
+      - Correlated timeline sequences linking initial vector, privilege escalation, credential dumping, lateral movement, and data staging.
+    tools:
+      - plaso
+      - velociraptor
+      - autopsy
+    resources:
+      - nist-800-86
+      - nist-800-61r3
+      - sans-dfir-finds
+    findings:
+      - id: dfir-anal-malware-payload-located
+        title: Malicious binary or persistence payload detected
+        next:
+          - dfir-malware-static-triage
+      - id: dfir-anal-c2-traffic-identified
+        title: Suspicious command-and-control communication identified
+        next:
+          - dfir-pcap-c2-beaconing
+    nextSteps:
+      - dfir-anal-root-cause-impact
+      - dfir-malware-static-triage
+
+  - id: dfir-anal-root-cause-impact
+    title: Determine root cause, dwell time & scope of compromise
+    category: dfir-analysis
+    parent: dfir-anal-hypotheses-correlation
+    order: 2
+    goal: Identify initial access vectors, determine adversary dwell time, quantify affected systems and sensitive data exposure, and evaluate business impact.
+    why: Complete impact scoping prevents premature remediation that leaves adversary backdoors or unmonitored persistence active in the environment.
+    checklist:
+      - Trace the earliest adversary artifact to establish incident start time and calculate dwell duration.
+      - Identify the initial vulnerability, stolen credential, or phishing payload enabling perimeter breach.
+      - Catalog all compromised endpoints, service accounts, and elevated privileges accessed during the intrusion.
+      - Assess exfiltrated or tampered data assets against regulatory notification thresholds.
+    lookFor:
+      - First entry timestamp, exploited CVE details, compromised account list, exfiltration staging folders, and total blast radius.
+    tools:
+      - velociraptor
+      - plaso
+    resources:
+      - nist-800-86
+      - nist-800-61r3
+      - cyberdefenders
+    findings: []
+    nextSteps:
+      - dfir-report-executive-summary
+
+  # ============================================================================
+  # 4. NIST SP 800-86 REPORTING PHASE
+  # ============================================================================
+  - id: dfir-report-executive-summary
+    title: Executive findings summary & incident timeline
+    category: dfir-reporting
+    order: 1
+    goal: Synthesize high-level business impact, root cause, compromised assets, and key timeline milestones for executive leadership and stakeholders.
+    why: Executives need clear, non-jargon summaries to make risk management, legal, and operational business decisions during and after an incident.
+    checklist:
+      - Summarize incident timeline highlighting initial breach, detection, containment, and eradication milestones.
+      - Detail business impact including affected systems, business interruption time, and confirmed data exposure.
+      - Outline immediate containment actions executed and current risk posture.
+      - Present high-level strategic recommendations to prevent recurrence.
+    lookFor:
+      - Clear executive narrative, quantified impact metrics, regulatory disclosure implications, and decision milestones.
+    tools:
+      - velociraptor
+    resources:
+      - nist-800-86
+      - nist-800-61r3
+    findings: []
+    nextSteps:
+      - dfir-report-technical-forensic-report
+
+  - id: dfir-report-technical-forensic-report
+    title: Technical forensics report & IOC documentation
+    category: dfir-reporting
+    parent: dfir-report-executive-summary
+    order: 2
+    goal: Document reproducible forensic methodology, artifact locations, tool outputs, and comprehensive Indicator of Compromise (IOC) tables.
+    why: Technical reports serve as definitive evidentiary records for legal proceedings, peer review, and engineering remediation teams.
+    checklist:
+      - Document evidence identification, forensic tool versions, command invocations, and cryptographic hashes.
+      - Detail step-by-step artifact findings with raw logs, memory dumps, and file offsets.
+      - Compile structured IOC tables (file hashes, C2 IP addresses, domains, registry keys, YARA rules).
+      - Include comprehensive timeline appendix detailing every correlated event.
+    lookFor:
+      - Complete chain of evidence, reproducible technical findings, validated IOC lists, and artifact references.
+    tools:
+      - autopsy
+      - plaso
+      - velociraptor
+    resources:
+      - nist-800-86
+      - dfir-blog
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-report-remediation-hardening
+
+  - id: dfir-report-remediation-hardening
+    title: Remediation guidance & lessons learned
+    category: dfir-reporting
+    parent: dfir-report-executive-summary
+    order: 3
+    goal: Provide actionable eradication steps, strategic defensive hardening recommendations, and lessons-learned improvements per NIST SP 800-61r3.
+    why: Post-incident reviews strengthen enterprise defenses, close exploited architectural gaps, and improve future incident response efficiency.
+    checklist:
+      - Detail complete eradication requirements (account credential resets, system rebuilds, backdoor removal).
+      - Propose tactical controls (endpoint detection rules, firewall blocks, EDR telemetry gaps).
+      - Propose strategic controls (network segmentation, MFA enforcement, privileged access management).
+      - Conduct a formal lessons-learned meeting and update incident response playbooks.
+    lookFor:
+      - Validated eradication checklists, detection engineering gaps, security control upgrades, and playbook updates.
+    tools:
+      - velociraptor
+    resources:
+      - nist-800-61r3
+      - nist-800-86
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 5. DISK / FILESYSTEM FORENSICS BRANCH
+  # ============================================================================
+  - id: dfir-disk-verify-image
+    title: Verify disk image format & cryptographic hash
+    category: dfir-disk
+    order: 1
+    goal: Compute verification hashes (MD5, SHA-256) of raw or E01 disk images and inspect image metadata headers.
+    why: Ensures evidence integrity before analysis begins and prevents corrupted image processing.
+    checklist:
+      - Calculate SHA-256 checksum of disk image file and compare against custody documentation.
+      - Identify forensic container format (Raw DD, E01 Expert Witness, VMDK, VHDX, QCOW2).
+      - Inspect E01 header metadata (examiner name, case number, acquisition date, notes).
+      - Mount image using read-only loopback or ewfmount.
+    lookFor:
+      - Hash match verification, corrupted sectors, compression artifacts, and container metadata details.
+    tools:
+      - sleuth-kit
+      - autopsy
+    resources:
+      - sleuth-kit-docs
+      - autopsy-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-disk-hash-verified
+        title: Disk image hash verified
+        next:
+          - dfir-disk-partition-layout
+    nextSteps:
+      - dfir-disk-partition-layout
+
+  - id: dfir-disk-partition-layout
+    title: Identify partition tables & volume systems
+    category: dfir-disk
+    parent: dfir-disk-verify-image
+    order: 2
+    goal: Parse MBR, GPT, or volume manager headers to locate active partitions, unallocated gaps, and hidden volume structures.
+    why: Attackers and malware can conceal data in unallocated sectors between partitions or unpartitioned disk space.
+    checklist:
+      - Run 'mmls' to parse Master Boot Record (MBR) or GUID Partition Table (GPT) layouts.
+      - Calculate sector offsets and cluster sizes for each partition.
+      - Identify unallocated gaps between partition boundaries and volume slack.
+      - Check for dynamic disks, LVM physical volumes, or encrypted BitLocker/LUKS volumes.
+    lookFor:
+      - Partition sector offsets, hidden non-standard partition types, large unpartitioned space gaps, and volume headers.
+    tools:
+      - sleuth-kit
+    resources:
+      - sleuth-kit-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-disk-ntfs-partition-found
+        title: NTFS partition identified
+        next:
+          - dfir-win-mft-usn
+      - id: dfir-disk-ext4-partition-found
+        title: Ext4/Linux partition identified
+        next:
+          - dfir-linux-fs-artifacts
+    nextSteps:
+      - dfir-disk-filesystem-enumeration
+      - dfir-win-mft-usn
+      - dfir-linux-fs-artifacts
+
+  - id: dfir-disk-filesystem-enumeration
+    title: Enumerate filesystem metadata & directory tree
+    category: dfir-disk
+    parent: dfir-disk-verify-image
+    order: 3
+    goal: Traverse directory structures, timestamps, file allocations, and metadata structures (inodes/MFT records) without altering data.
+    why: Directory enumeration provides baseline filesystem layout and maps user profiles, application data, and system configurations.
+    checklist:
+      - Run 'fls' with partition sector offset to list directory trees recursively.
+      - Inspect filesystem statistics ('fsstat') to determine cluster size, total blocks, and metadata layout.
+      - Identify abnormal directory structures, hidden files, and unauthorized executable paths.
+      - Document filesystem type (NTFS, FAT32, exFAT, EXT4, APFS, XFS).
+    lookFor:
+      - Unusually placed binaries, hidden folders, non-standard system files, and suspicious user directory additions.
+    tools:
+      - sleuth-kit
+      - autopsy
+    resources:
+      - sleuth-kit-docs
+      - autopsy-docs
+      - dfir-blog
+    findings: []
+    nextSteps:
+      - dfir-disk-deleted-file-recovery
+
+  - id: dfir-disk-deleted-file-recovery
+    title: Recover deleted files & analyze unallocated space
+    category: dfir-disk
+    parent: dfir-disk-verify-image
+    order: 4
+    goal: Extract deleted directory entries, trace unallocated clusters, and extract orphaned file records using filesystem metadata.
+    why: Attackers regularly delete staging tools, payloads, and exfiltration archives to cover tracks.
+    checklist:
+      - Use 'fls -r -d' to list deleted directory entries and orphaned metadata pointers.
+      - Extract deleted files using 'icat' pointing to inode or MFT record numbers.
+      - Inspect filesystem journal files ($LogFile, ext4 journal) for recent transaction rollbacks.
+      - Export raw unallocated blocks using 'blkls' for subsequent deep carving.
+    lookFor:
+      - Deleted executables, temporary batch scripts, PowerShell scripts, staging ZIP archives, and log wipe residue.
+    tools:
+      - sleuth-kit
+      - autopsy
+    resources:
+      - sleuth-kit-docs
+      - autopsy-docs
+      - sans-dfir-finds
+    findings: []
+    nextSteps:
+      - dfir-disk-signature-carving
+
+  - id: dfir-disk-signature-carving
+    title: File carving via magic bytes & headers
+    category: dfir-disk
+    parent: dfir-disk-verify-image
+    order: 5
+    goal: Reconstruct contiguous and fragmented files from raw unallocated disk blocks using magic byte signatures and structural validators.
+    why: File carving recovers critical evidence when filesystem metadata records have been wiped or overwritten.
+    checklist:
+      - Run Foremost or PhotoRec against unallocated raw space ('blkls' output).
+      - Configure custom headers/footers for proprietary file formats, custom logs, or binary payloads.
+      - Run Binwalk to detect embedded files, compressed archives, and firmware components.
+      - Validate integrity of carved files against expected format parsers.
+    lookFor:
+      - Carved PE executables, ZIP archives, Office documents, PDFs, certificates, and SQLite databases.
+    tools:
+      - foremost
+      - photorec
+      - binwalk
+    resources:
+      - photorec-docs
+      - sleuth-kit-docs
+      - cyberdefenders
+    findings:
+      - id: dfir-disk-suspicious-binary-carved
+        title: Executable binary carved from unallocated space
+        next:
+          - dfir-malware-static-triage
+    nextSteps:
+      - dfir-disk-string-bulk-extraction
+      - dfir-malware-static-triage
+
+  - id: dfir-disk-string-bulk-extraction
+    title: Bulk feature extraction & keyword search
+    category: dfir-disk
+    parent: dfir-disk-verify-image
+    order: 6
+    goal: Rapidly scan raw volume blocks for email addresses, URLs, IP addresses, private keys, and high-entropy secrets.
+    why: Feature extraction bypasses filesystem complexity to locate actionable indicators of compromise in seconds.
+    checklist:
+      - Run Bulk Extractor against raw disk image or unallocated blocks.
+      - Extract and aggregate IP addresses, domain names, and URLs into triage lists.
+      - Extract email addresses, credit card numbers, and cryptographic private keys.
+      - Perform targeted keyword searches for known project names, credentials, or malware strings.
+    lookFor:
+      - Attacker C2 IP addresses, staging URLs, leaked passwords, API tokens, and user credentials.
+    tools:
+      - bulk-extractor
+    resources:
+      - bulk-extractor-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-disk-ioc-ip-extracted
+        title: Network indicators discovered on disk
+        next:
+          - dfir-pcap-triage
+    nextSteps:
+      - dfir-disk-volume-shadow-copies
+      - dfir-pcap-triage
+
+  - id: dfir-disk-volume-shadow-copies
+    title: Inspect Volume Shadow Copies & snapshot deltas
+    category: dfir-disk
+    parent: dfir-disk-verify-image
+    order: 7
+    goal: Mount and parse historical VSS snapshots to analyze past configurations, recover overwritten files, and track ransomware timing.
+    why: Shadow copies preserve historical states of files, registry hives, and system binaries from before adversary tampering or encryption.
+    checklist:
+      - Enumerate available Volume Shadow Copies using vshadowinfo / libvshadow.
+      - Mount shadow copy snapshots as independent read-only filesystems.
+      - Compare file modifications and registry keys between historical snapshots and current disk state.
+      - Extract historical copies of SAM, SYSTEM, and NTUSER.DAT hives.
+    lookFor:
+      - Pre-encryption file copies, historical malware configurations, deleted user accounts, and modified system binaries.
+    tools:
+      - sleuth-kit
+      - autopsy
+    resources:
+      - sleuth-kit-docs
+      - autopsy-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 6. MEMORY FORENSICS BRANCH
+  # ============================================================================
+  - id: dfir-mem-triage
+    title: Identify memory profile & kernel architecture
+    category: dfir-memory
+    order: 1
+    goal: Determine OS build, kernel symbols, ASLR base, and DTB (Directory Table Base) from volatile memory dump.
+    why: Accurate memory symbol resolution is required to parse kernel structures, processes, and memory objects.
+    checklist:
+      - Run Volatility 3 banner / isfinfo to determine OS version, kernel build, and architecture.
+      - Verify memory dump format (raw physical RAM, crash dump, ELF core, VMware .vmem, Hyper-V).
+      - Download or generate intermediate symbol tables (ISF) matching target kernel.
+      - Document memory size, acquisition tool signature, and DTB pointer.
+    lookFor:
+      - Kernel version, build number, processor architecture (x86/x64/ARM), and symbol matching status.
+    tools:
+      - volatility
+    resources:
+      - volatility-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-mem-process-enumeration
+
+  - id: dfir-mem-process-enumeration
+    title: Enumerate process hierarchy & detect unlinked processes
+    category: dfir-memory
+    parent: dfir-mem-triage
+    order: 2
+    goal: Compare ActiveProcessLinks (pslist) against memory pool scans (psscan) to detect DKOM hidden processes and abnormal parentage.
+    why: Rootkits and sophisticated malware detach process structures from active lists to hide from task managers and standard tools.
+    checklist:
+      - Run 'windows.pslist' to view the active doubly-linked list of processes.
+      - Run 'windows.psscan' to find unlinked process blocks via memory pool signature scanning.
+      - Run 'windows.pstree' to evaluate parent-child process relationships and verify expected parent PIDs.
+      - Compare pslist vs psscan output to isolate unlinked hidden processes (DKOM).
+    lookFor:
+      - Mismatched process start/exit times, abnormal parent processes (e.g. cmd.exe spawned by spoolsv.exe), and processes with fake names.
+    tools:
+      - volatility
+    resources:
+      - volatility-docs
+      - sans-dfir-finds
+      - cyberdefenders
+    findings:
+      - id: dfir-mem-hidden-process-found
+        title: Unlinked hidden process detected (DKOM)
+        next:
+          - dfir-mem-code-injection
+    nextSteps:
+      - dfir-mem-code-injection
+
+  - id: dfir-mem-code-injection
+    title: Detect process injection & memory anomalies
+    category: dfir-memory
+    parent: dfir-mem-triage
+    order: 3
+    goal: Identify injected DLLs, hollowed processes, RWX memory segments, and shellcode payloads using memory scanning.
+    why: Attackers inject malicious code into legitimate processes (svchost.exe, explorer.exe) to evade endpoint detection.
+    checklist:
+      - Run 'windows.malfind' to scan for executable (PAGE_EXECUTE_READWRITE) memory segments not backed by disk.
+      - Inspect dumped memory regions for PE headers ('MZ' / 'PE' magic bytes) or shellcode NOP sleds.
+      - Run 'windows.ldrmodules' to detect unlinked DLLs hidden from PEB loader data tables.
+      - Dump suspicious injected memory sections using 'windows.dumpfiles'.
+    lookFor:
+      - Unbacked executable memory pages, reflective DLL injections, process hollowing indicators, and shellcode stubs.
+    tools:
+      - volatility
+    resources:
+      - volatility-docs
+      - sans-dfir-finds
+      - htb-sherlocks
+    findings:
+      - id: dfir-mem-injected-payload-extracted
+        title: Injected shellcode or hollowed PE dumped
+        next:
+          - dfir-malware-static-triage
+    nextSteps:
+      - dfir-mem-network-sockets
+      - dfir-malware-static-triage
+
+  - id: dfir-mem-network-sockets
+    title: Inspect memory network sockets & active connections
+    category: dfir-memory
+    parent: dfir-mem-triage
+    order: 4
+    goal: Extract active TCP/UDP endpoints, historical closed sockets, and associated process PIDs from volatile memory structures.
+    why: Correlating memory network sockets with processes identifies C2 beacons, reverse shells, and unauthorized data exfiltration channels.
+    checklist:
+      - Run 'windows.netscan' or 'linux.sockscan' to enumerate active and closed network connections.
+      - Correlate remote IP addresses and foreign ports with process PIDs and executable names.
+      - Cross-reference remote IP addresses against threat intelligence and WHOIS data.
+      - Check for listening ports associated with non-standard service processes.
+    lookFor:
+      - Suspicious outbound connections on non-standard ports, reverse shell connections, and connections from injected system processes.
+    tools:
+      - volatility
+    resources:
+      - volatility-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-mem-suspicious-connection-detected
+        title: Suspicious remote connection from memory
+        next:
+          - dfir-pcap-triage
+    nextSteps:
+      - dfir-mem-kernel-rootkits
+      - dfir-pcap-triage
+
+  - id: dfir-mem-kernel-rootkits
+    title: Analyze kernel drivers, hooks & SSDT modifications
+    category: dfir-memory
+    parent: dfir-mem-triage
+    order: 5
+    goal: Scan for unsigned kernel drivers, SSDT hooks, IRP table detours, and kernel-mode rootkit modifications.
+    why: Kernel rootkits manipulate core OS telemetry, hide files/processes from userland tools, and disable EDR agents.
+    checklist:
+      - Run 'windows.modules' / 'windows.driverscan' to list loaded kernel drivers.
+      - Run 'windows.ssdt' to detect system service dispatch table hooking.
+      - Check MajorFunction tables in driver objects for IRP hook detours.
+      - Verify driver digital signatures and base addresses against known legitimate kernel modules.
+    lookFor:
+      - Hooked SSDT entries pointing outside ntoskrnl.exe address space, hidden drivers, and modified kernel code pages.
+    tools:
+      - volatility
+    resources:
+      - volatility-docs
+      - sans-dfir-finds
+    findings: []
+    nextSteps:
+      - dfir-mem-dump-credentials
+
+  - id: dfir-mem-dump-credentials
+    title: Extract cached credentials, keys & decrypted sessions
+    category: dfir-memory
+    parent: dfir-mem-triage
+    order: 6
+    goal: Recover LSASS credentials, master keys, DPAPI keys, BitLocker recovery passwords, and decrypted TLS session data.
+    why: Identifies whether attacker harvested credentials to perform lateral movement or if credentials can be recovered for incident analysis.
+    checklist:
+      - Run 'windows.hashdump' and 'windows.cachedump' to extract SAM hashes and domain cached credentials.
+      - Extract LSA secrets and Kerberos tickets from memory structures.
+      - Scan for DPAPI master keys and BitLocker recovery keys.
+      - Extract plaintext passwords from memory buffers of password managers or active browser sessions.
+    lookFor:
+      - Plaintext credentials, NTLM password hashes, Kerberos TGT/TGS tickets, and encryption keys.
+    tools:
+      - volatility
+      - bulk-extractor
+    resources:
+      - volatility-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-mem-cmdline-history
+
+  - id: dfir-mem-cmdline-history
+    title: Recover command history & console buffers
+    category: dfir-memory
+    parent: dfir-mem-triage
+    order: 7
+    goal: Reconstruct executed console commands, PowerShell sessions, and bash buffers from conhost/cmd memory structures.
+    why: Command line buffers reveal exact commands executed by attackers, downloaded scripts, and internal reconnaissance syntax.
+    checklist:
+      - Run 'windows.cmdline' to extract process command line arguments.
+      - Inspect conhost.exe and cmd.exe process memory for active console input/output buffers.
+      - Extract PowerShell execution logs, encoded script blocks, and piped command streams.
+      - Extract environment variables associated with each process.
+    lookFor:
+      - Base64 encoded PowerShell commands ('-enc'), obfuscated cmd scripts, download cradles (IEX / WebClient), and reconnaissance commands (whoami, net view).
+    tools:
+      - volatility
+    resources:
+      - volatility-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 7. NETWORK / PCAP FORENSICS BRANCH
+  # ============================================================================
+  - id: dfir-pcap-triage
+    title: Initial PCAP triage & protocol hierarchy overview
+    category: dfir-network
+    order: 1
+    goal: Analyze protocol distribution, conversation endpoints, packet volume spikes, and time bounds of network capture.
+    why: High-level PCAP triage scopes the capture timeframe, isolates high-volume streams, and pinpoints anomaly candidates.
+    checklist:
+      - Run 'tshark -q -z io,phs -r capture.pcap' to generate protocol hierarchy statistics.
+      - Extract IP conversation summary with 'tshark -q -z conv,ip -r capture.pcap'.
+      - Identify capture start and end timestamps and check for packet truncation (snaplen limits).
+      - Filter broadcast and noise protocols (LLMNR, MDNS, SSDP, ARP) to isolate unicast sessions.
+    lookFor:
+      - Volume spikes, abnormal protocol distributions, large data transfers, and non-standard port usages.
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - sans-dfir-cheatsheets
+      - cyberdefenders
+    findings: []
+    nextSteps:
+      - dfir-pcap-dns-analysis
+
+  - id: dfir-pcap-dns-analysis
+    title: DNS query analysis & DGA detection
+    category: dfir-network
+    parent: dfir-pcap-triage
+    order: 2
+    goal: Detect algorithmically generated domains (DGA), high-frequency NXDOMAIN queries, fast-flux DNS, and DNS tunneling.
+    why: DNS is the primary mechanism for C2 domain resolution, malware rendezvous, and covert data exfiltration.
+    checklist:
+      - Extract all DNS queries and responses ('tshark -Y dns -T fields -e dns.qry.name -e dns.a').
+      - Calculate Shannon entropy on domain names to identify algorithmically generated domains (DGA).
+      - Analyze NXDOMAIN response ratios to detect dead C2 fallbacks and domain generation sweeps.
+      - Inspect high-frequency TXT and NULL record lookups for DNS tunneling indicators.
+    lookFor:
+      - High-entropy subdomains, repetitive NXDOMAIN bursts, abnormal TXT record payload lengths, and dynamic DNS providers.
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-pcap-dga-domain-found
+        title: Suspicious DGA or C2 domain identified
+        next:
+          - dfir-pcap-c2-beaconing
+    nextSteps:
+      - dfir-pcap-c2-beaconing
+
+  - id: dfir-pcap-c2-beaconing
+    title: Detect command & control (C2) beaconing patterns
+    category: dfir-network
+    parent: dfir-pcap-triage
+    order: 3
+    goal: Isolate recurring periodic network requests, uniform delta intervals, jitter patterns, and persistent HTTP/HTTPS connections.
+    why: C2 implants communicate with controllers on predictable intervals; isolating beacons exposes active backdoors and infrastructure.
+    checklist:
+      - Extract session timestamps between specific IP pairs and calculate inter-arrival delta intervals.
+      - Identify regular periodicity (e.g. connection every 60s ± 10% jitter).
+      - Inspect HTTP User-Agent headers, URI structures, and cookie formats for known C2 framework signatures (Cobalt Strike, Mythic, Sliver).
+      - Analyze persistent TCP streams with minimal data exchange (heartbeat / keep-alive traffic).
+    lookFor:
+      - Low-variance connection intervals, static User-Agents, repetitive URI parameters, and unusual HTTP POST heartbeat bodies.
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - dfir-blog
+      - htb-sherlocks
+    findings:
+      - id: dfir-pcap-active-c2-established
+        title: Confirmed C2 communication stream
+        next:
+          - dfir-pcap-file-extraction
+    nextSteps:
+      - dfir-pcap-file-extraction
+
+  - id: dfir-pcap-file-extraction
+    title: Extract transferred payloads & stream objects
+    category: dfir-network
+    parent: dfir-pcap-triage
+    order: 4
+    goal: Carve transferred files, staged binaries, and malicious payloads from unencrypted HTTP, SMB, and FTP streams.
+    why: Reconstructing transferred payloads enables malware analysis and identifies exactly what scripts or data crossed the network boundary.
+    checklist:
+      - Export HTTP stream objects using 'tshark --export-objects http,./exported'.
+      - Extract files transferred over SMB/SMB2 using 'tshark --export-objects smb,./exported_smb'.
+      - Reassemble raw TCP streams using Wireshark / TShark follow stream functionality.
+      - Compute SHA-256 hashes of all carved objects and check against threat intelligence databases.
+    lookFor:
+      - Downloaded executables (.exe, .dll), scripts (.ps1, .vbs, .sh), document droppers (.docx, .xlsm), and staged archives.
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - cyberdefenders
+    findings:
+      - id: dfir-pcap-extracted-binary-payload
+        title: Executable payload carved from network stream
+        next:
+          - dfir-malware-static-triage
+    nextSteps:
+      - dfir-pcap-tls-fingerprinting
+      - dfir-malware-static-triage
+
+  - id: dfir-pcap-tls-fingerprinting
+    title: Inspect TLS handshakes, JA3/JA4 fingerprints & certificates
+    category: dfir-network
+    parent: dfir-pcap-triage
+    order: 5
+    goal: Analyze ClientHello packets, JA3/JA4 TLS client signatures, self-signed certificates, and SNI domain discrepancies.
+    why: Encrypted traffic hides packet payloads, but TLS negotiation parameters fingerprint client applications and malware families.
+    checklist:
+      - Extract TLS ClientHello cipher suites, extensions, elliptic curves, and point formats.
+      - Compute and look up JA3/JA3S and JA4 hashes for suspicious client endpoints.
+      - Extract server certificates, issuer authorities, validity dates, and subject names.
+      - Compare Server Name Indication (SNI) against DNS lookups and destination IP WHOIS records.
+    lookFor:
+      - Known malware JA3 signatures, self-signed or expired certificates, domain fronting indicators, and mismatched SNI vs certificate subjects.
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - dfir-blog
+    findings: []
+    nextSteps:
+      - dfir-pcap-lateral-movement
+
+  - id: dfir-pcap-lateral-movement
+    title: Identify internal lateral movement & protocol abuse
+    category: dfir-network
+    parent: dfir-pcap-triage
+    order: 6
+    goal: Identify internal reconnaissance (ARP sweeps, port scans), SMB/RPC file transfers, PsExec execution, and Kerberos ticket passing.
+    why: Lateral movement reveals how adversaries traverse internal network zones to access high-value systems from the initial foothold.
+    checklist:
+      - Filter internal East-West traffic between private IP ranges (RFC 1918).
+      - Detect ARP sweeps, ICMP sweeps, and SYN port scans originating from internal endpoints.
+      - Inspect SMB traffic for administrative share access (ADMIN$, C$, IPC$) and named pipe creation (svcctl, psexec).
+      - Analyze Kerberos AS-REQ and TGS-REQ packets for Kerberoasting, AS-REP roasting, or Overpass-the-Hash activity.
+    lookFor:
+      - PsExec service installations, remote WMI execution, Pass-the-Hash RPC calls, and anomalous Kerberos encryption types (RC4).
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - sans-dfir-cheatsheets
+      - htb-sherlocks
+    findings: []
+    nextSteps:
+      - dfir-pcap-data-exfiltration
+
+  - id: dfir-pcap-data-exfiltration
+    title: Detect data staging & outbound exfiltration
+    category: dfir-network
+    parent: dfir-pcap-triage
+    order: 7
+    goal: Isolate asymmetric high-volume outbound data transfers, unusual cloud storage POSTs, ICMP tunneling, and encrypted archive uploads.
+    why: Data exfiltration represents the primary business impact of espionage and ransomware operations.
+    checklist:
+      - Calculate inbound versus outbound byte ratios per external IP conversation.
+      - Filter large HTTP POST / PUT requests to external web servers or cloud storage APIs (Mega, AWS S3, Dropbox).
+      - Inspect ICMP payloads for non-standard echo request/reply data patterns (ICMP tunneling).
+      - Analyze high-volume SSH, SCP, FTP, and HTTPS outbound data bursts.
+    lookFor:
+      - Multi-megabyte outbound uploads, encrypted data payloads in standard protocols, cloud storage bucket uploads, and off-hours transfers.
+    tools:
+      - tshark
+    resources:
+      - tshark-docs
+      - cyberdefenders
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 8. WINDOWS ARTIFACTS BRANCH
+  # ============================================================================
+  - id: dfir-win-registry-analysis
+    title: Windows registry triage & execution keys
+    category: dfir-windows
+    order: 1
+    goal: Parse SYSTEM, SOFTWARE, SAM, and NTUSER.DAT hives for autorun persistence, user activity, mounted devices, and typed URLs.
+    why: The Windows Registry is a central repository recording system configuration, installed software, autorun keys, and user interactions.
+    checklist:
+      - Parse Run and RunOnce keys (HKLM/HKCU\Software\Microsoft\Windows\CurrentVersion\Run).
+      - Inspect USBSTOR and MountedDevices keys to identify connected external storage devices.
+      - Parse UserAssist and ShellBags keys in NTUSER.DAT/UsrClass.dat to trace GUI program execution and folder access.
+      - Extract SAM and SYSTEM hives to analyze local user account metadata and password last-set dates.
+    lookFor:
+      - Suspicious Run keys, unauthorized USB drive serial numbers, UserAssist execution counts, and newly created local administrator accounts.
+    tools:
+      - velociraptor
+      - autopsy
+      - plaso
+    resources:
+      - velociraptor-docs
+      - autopsy-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-win-mft-usn
+
+  - id: dfir-win-mft-usn
+    title: NTFS $MFT, $LogFile & $UsnJrnl analysis
+    category: dfir-windows
+    parent: dfir-win-registry-analysis
+    order: 2
+    goal: Extract file creation, modification, and deletion timelines from Master File Table attributes ($STANDARD_INFORMATION, $FILE_NAME).
+    why: MFT analysis proves whether files existed, detects timestomping anomalies, and tracks file movement across volumes.
+    checklist:
+      - Parse $MFT records to extract $STANDARD_INFORMATION ($SI) and $FILE_NAME ($FN) timestamps.
+      - Compare $SI versus $FN timestamps to detect timestamp manipulation (timestomping).
+      - Parse the Update Sequence Number journal ($UsnJrnl:$J) to track file creation, renaming, and deletion actions.
+      - Analyze $LogFile transactional records for filesystem operations preceding system crashes.
+    lookFor:
+      - $SI timestamp earlier than $FN timestamp (timestomping indicator), rapid file deletion records, and newly created system executables.
+    tools:
+      - sleuth-kit
+      - plaso
+    resources:
+      - sleuth-kit-docs
+      - plaso-docs
+      - sans-dfir-finds
+    findings: []
+    nextSteps:
+      - dfir-win-execution-artifacts
+
+  - id: dfir-win-execution-artifacts
+    title: Program execution artifacts (Prefetch, Shimcache, Amcache)
+    category: dfir-windows
+    parent: dfir-win-registry-analysis
+    order: 3
+    goal: Prove binary execution history, first/last run timestamps, execution counts, and run paths using Prefetch (.pf), Shimcache, and Amcache.hve.
+    why: Execution artifacts provide indisputable forensic proof that an attacker's tool or malware binary was run on the system.
+    checklist:
+      - Parse Windows Prefetch files (C:\Windows\Prefetch\*.pf) to extract executable name, run count, last 8 run timestamps, and referenced DLLs.
+      - Parse AppCompatCache (Shimcache) in SYSTEM hive for binary path, file size, last modified timestamp, and execution flag.
+      - Parse Amcache.hve (C:\Windows\appcompat\Programs\Amcache.hve) to retrieve SHA-1 hashes, compilation dates, and install paths.
+      - Cross-reference executed binary paths with $MFT and event log timelines.
+    lookFor:
+      - Evidence of execution for reconnaissance tools (adfind.exe, procdump.exe, mimikatz.exe), staging scripts, and ransomware binaries.
+    tools:
+      - velociraptor
+      - plaso
+    resources:
+      - velociraptor-docs
+      - plaso-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-win-malicious-execution-confirmed
+        title: Evidence of malicious executable execution
+        next:
+          - dfir-malware-static-triage
+    nextSteps:
+      - dfir-win-persistence-mechanisms
+      - dfir-malware-static-triage
+
+  - id: dfir-win-persistence-mechanisms
+    title: Investigate Scheduled Tasks, Services & WMI persistence
+    category: dfir-windows
+    parent: dfir-win-registry-analysis
+    order: 4
+    goal: Inspect Scheduled Tasks (C:\Windows\System32\Tasks), custom Services, WMI Event Consumers, and Startup folders for persistent footholds.
+    why: Adversaries establish persistence to maintain access across reboots and account password changes.
+    checklist:
+      - Inspect XML task definitions in C:\Windows\System32\Tasks and registry task keys.
+      - Enumerate Windows Services in SYSTEM hive (CurrentControlSet\Services) for unusual binPath values.
+      - Query WMI repository (OBJECTS.DATA) for __EventFilter, __EventConsumer, and __FilterToConsumerBinding classes.
+      - Check startup folders (C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup).
+    lookFor:
+      - Hidden scheduled tasks running encoded PowerShell, services executing from user temp folders, and WMI consumers executing scripts.
+    tools:
+      - velociraptor
+    resources:
+      - velociraptor-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 9. LINUX ARTIFACTS BRANCH
+  # ============================================================================
+  - id: dfir-linux-fs-artifacts
+    title: Linux filesystem triage & directory layout
+    category: dfir-linux
+    order: 1
+    goal: Inspect /tmp, /var/tmp, /dev/shm, /opt, and hidden directories for dropped staging files, hidden binaries, and rootkit artifacts.
+    why: Linux world-writable directories and shared memory locations are prime staging grounds for adversary payloads and cryptominers.
+    checklist:
+      - Inspect /tmp, /var/tmp, and /dev/shm for executable scripts, hidden dotfiles (.payload), and deleted open handles ('/dev/shm/... (deleted)').
+      - Search for files with SUID/SGID permissions ('find / -perm -4000') created or modified within the incident timeframe.
+      - Inspect /etc/ld.so.preload and LD_PRELOAD environment variables for userland rootkit hooks.
+      - Check /opt, /usr/local/bin, and /etc for unexpected binaries or altered system scripts.
+    lookFor:
+      - Executables in /dev/shm or /tmp, malicious entries in /etc/ld.so.preload, unexpected SUID binaries, and hidden directory structures.
+    tools:
+      - sleuth-kit
+      - velociraptor
+    resources:
+      - sleuth-kit-docs
+      - velociraptor-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-linux-user-history
+
+  - id: dfir-linux-user-history
+    title: User accounts, SSH keys & shell histories
+    category: dfir-linux
+    parent: dfir-linux-fs-artifacts
+    order: 2
+    goal: Examine /etc/passwd, /etc/shadow, ~/.bash_history, ~/.zsh_history, and authorized_keys for unauthorized accounts, backdoors, and interactive attacker commands.
+    why: Shell history files record manual commands typed by attackers, while authorized_keys files reveal persistent SSH backdoor keys.
+    checklist:
+      - Audit /etc/passwd and /etc/shadow for newly created accounts, UID 0 accounts, or accounts with empty passwords.
+      - Inspect /root/.ssh/authorized_keys and /home/*/.ssh/authorized_keys for unauthorized public keys and comments.
+      - Recover and analyze ~/.bash_history, ~/.zsh_history, and /root/.bash_history timestamps and executed commands.
+      - Check for deleted history files (HISTFILE=/dev/null) or anti-forensic history truncation.
+    lookFor:
+      - Unauthorized SSH public keys, non-root accounts with UID 0, interactive attacker commands, curl/wget staging downloads, and history clearing commands.
+    tools:
+      - velociraptor
+    resources:
+      - velociraptor-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-linux-persistence-cron
+
+  - id: dfir-linux-persistence-cron
+    title: Cron jobs, systemd services & init persistence
+    category: dfir-linux
+    parent: dfir-linux-fs-artifacts
+    order: 3
+    goal: Audit /etc/cron*, /var/spool/cron, systemd timer/service units, and /etc/rc.local for persistent backdoor invocation.
+    why: Cron and systemd units allow attacker payloads to survive reboots and execute with root privileges on automated schedules.
+    checklist:
+      - Inspect system crontab files (/etc/crontab, /etc/cron.d/, /etc/cron.daily/, /etc/cron.hourly/).
+      - Check user crontabs (/var/spool/cron/crontabs/*) and at jobs (/var/spool/cron/atjobs).
+      - Audit custom systemd service units and timer units (/etc/systemd/system/*.service, /lib/systemd/system/).
+      - Inspect /etc/rc.local, /etc/profile, /etc/bash.bashrc, and /etc/environment for injected commands.
+    lookFor:
+      - Reverse shell commands in cron entries, timer units triggering external downloads, and modified shell profile scripts.
+    tools:
+      - velociraptor
+    resources:
+      - velociraptor-docs
+      - sans-dfir-cheatsheets
+    findings: []
+    nextSteps:
+      - dfir-linux-logs-auth
+
+  - id: dfir-linux-logs-auth
+    title: Linux authentication logs (auth.log / secure) & wtmp/btmp
+    category: dfir-linux
+    parent: dfir-linux-fs-artifacts
+    order: 4
+    goal: Analyze /var/log/auth.log, /var/log/secure, /var/log/wtmp (login history), and /var/log/btmp (failed logins) for brute force and sudo escalation.
+    why: Authentication logs record remote SSH logins, source IP addresses, accepted authentication methods, and sudo privilege escalation commands.
+    checklist:
+      - Parse /var/log/auth.log (Debian/Ubuntu) or /var/log/secure (RHEL/CentOS) for SSH session activity.
+      - Parse /var/log/wtmp (successful logins) and /var/log/btmp (failed logins) using 'last' and 'lastb'.
+      - Search for successful sudo commands ('COMMAND=...') and su session switches.
+      - Analyze auditd logs (/var/log/audit/audit.log) for execve syscalls and privilege elevation events.
+    lookFor:
+      - SSH password brute force sequences followed by accepted logins, logins from unexpected geographical IPs, and unauthorized sudo execution.
+    tools:
+      - velociraptor
+      - plaso
+    resources:
+      - velociraptor-docs
+      - plaso-docs
+      - dfir-blog
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 10. LOGS FORENSICS BRANCH
+  # ============================================================================
+  - id: dfir-logs-triage
+    title: Log acquisition, time-sync & normalization
+    category: dfir-logs
+    order: 1
+    goal: Collect Windows Event Logs (.evtx), Linux syslog/journald, and application logs, normalizing UTC timestamps and clock skew.
+    why: Logs provide primary evidence of adversary actions; un-normalized timestamps across hosts lead to erroneous sequence reconstruction.
+    checklist:
+      - Collect raw .evtx files from C:\Windows\System32\Winevt\Logs and Linux logs from /var/log/.
+      - Export journald binary logs using 'journalctl --export' or extract system.journal files.
+      - Determine host system clock drift and normalize all log sources to a unified UTC timeline.
+      - Parse and index log files into structured JSON or database tables for query filtering.
+    lookFor:
+      - Clock skew deltas, cleared event logs (Event ID 1102 / 104), log service disruptions, and unallocated log record fragments.
+    tools:
+      - velociraptor
+      - plaso
+    resources:
+      - velociraptor-docs
+      - plaso-docs
+      - dfir-blog
+    findings: []
+    nextSteps:
+      - dfir-logs-windows-evtx
+
+  - id: dfir-logs-windows-evtx
+    title: Windows Security & Sysmon event analysis
+    category: dfir-logs
+    parent: dfir-logs-triage
+    order: 2
+    goal: Filter Event ID 4624 (Logon), 4625 (Failed Logon), 4672 (Admin Privileges), 4688 / Sysmon 1 (Process Creation), and Sysmon 3 (Network Connections).
+    why: Windows Security and Sysmon logs record granular process executions, logon types (Type 3 Network, Type 10 RDP), and lateral movement.
+    checklist:
+      - Filter Event ID 4624 to identify logon types (Logon Type 3 = Network, Type 10 = RemoteInteractive/RDP, Type 9 = NewCredentials).
+      - Analyze Sysmon Event ID 1 / Security 4688 for process creation, parent PID, command lines, and binary hashes.
+      - Filter Sysmon Event ID 3 for outbound network connections initiated by command interpreters or script hosts.
+      - Inspect Event ID 7045 / 4697 (Service Installation) and Event ID 4720 (User Account Created).
+    lookFor:
+      - Logon Type 3 from untrusted internal hosts, encoded command lines in Sysmon 1, PsExec service installations (7045), and Security log clearing (1102).
+    tools:
+      - velociraptor
+      - plaso
+    resources:
+      - velociraptor-docs
+      - plaso-docs
+      - sans-dfir-cheatsheets
+    findings:
+      - id: dfir-logs-suspicious-process-creation
+        title: Process creation event indicates anomalous parent/child
+        next:
+          - dfir-malware-static-triage
+    nextSteps:
+      - dfir-logs-web-app-access
+      - dfir-malware-static-triage
+
+  - id: dfir-logs-web-app-access
+    title: Web server access logs & API telemetry
+    category: dfir-logs
+    parent: dfir-logs-triage
+    order: 3
+    goal: Inspect Apache, Nginx, and IIS access and error logs for web shell interactions, SQLi/RCE payloads, and scanning activity.
+    why: Web access logs record external HTTP requests that exploited internet-facing vulnerabilities to gain initial access.
+    checklist:
+      - Filter HTTP request logs for known web shell paths (shell.aspx, cmd.php, test.jsp) and high HTTP 200 response volumes.
+      - Search for SQL injection, command injection, path traversal, and deserialization strings in request URIs and POST data.
+      - Analyze client IP distributions, user-agent anomalies, and spike patterns indicating automated vulnerability scans.
+      - Correlate web request timestamps with local filesystem file drops in web server document roots.
+    lookFor:
+      - HTTP POST requests to uploaded script files, URIs containing command execution parameters ('?cmd=whoami'), and high-frequency vulnerability scanning.
+    tools:
+      - plaso
+    resources:
+      - plaso-docs
+      - dfir-blog
+    findings: []
+    nextSteps:
+      - dfir-logs-cloud-audit
+
+  - id: dfir-logs-cloud-audit
+    title: Cloud audit trails (CloudTrail, Azure Activity, Google Cloud Audit)
+    category: dfir-logs
+    parent: dfir-logs-triage
+    order: 4
+    goal: Analyze cloud management plane audit logs for anomalous console logins, IAM policy modifications, and bulk data downloads.
+    why: Cloud intrusions manipulate identity permissions, spin up unauthorized compute resources, and exfiltrate data directly from cloud storage.
+    checklist:
+      - Parse AWS CloudTrail, Azure Activity Log, or Google Cloud Audit JSON records.
+      - Filter for ConsoleLogin events with and without Multi-Factor Authentication (MFA).
+      - Audit IAM changes (CreateUser, AttachUserPolicy, PutRolePolicy, CreateAccessKey).
+      - Identify bulk data downloads from S3 buckets, Azure Blob containers, or Google Cloud Storage.
+    lookFor:
+      - Console logins without MFA, new access keys generated for privileged accounts, anomalous regional resource creations, and mass S3 GetObject calls.
+    tools:
+      - velociraptor
+    resources:
+      - velociraptor-docs
+      - nist-800-61r3
+    findings: []
+    nextSteps: []
+
+  # ============================================================================
+  # 11. MALWARE TRIAGE BRANCH
+  # ============================================================================
+  - id: dfir-malware-static-triage
+    title: Static binary triage, hashes & metadata
+    category: dfir-malware
+    order: 1
+    goal: Compute SHA-256 / SSDEEP fuzzy hashes, verify authenticode digital signatures, and parse PE/ELF headers and compile timestamps.
+    why: Static triage rapidly identifies known malware families, evaluates file legitimacy, and safely extracts metadata without execution.
+    checklist:
+      - Calculate SHA-256, MD5, and SSDEEP fuzzy hashes and query threat intelligence databases (VirusTotal).
+      - Check digital signatures (Authenticode / codesign) and verify signing certificate validity.
+      - Parse PE/ELF headers to inspect section names (.text, .data, .rsrc), entropy, and compilation timestamps.
+      - Check for anomalies like high section entropy (>7.0) indicating packing or encryption (UPX, VMProtect).
+    lookFor:
+      - Invalid or self-signed digital signatures, suspicious compilation dates (timestomped to 1970 or future dates), and packed PE sections.
+    tools:
+      - exiftool
+      - binwalk
+    resources:
+      - exiftool-docs
+      - sans-dfir-cheatsheets
+      - cyberdefenders
+    findings: []
+    nextSteps:
+      - dfir-malware-string-capability
+
+  - id: dfir-malware-string-capability
+    title: String extraction, obfuscation & capability mapping
+    category: dfir-malware
+    parent: dfir-malware-static-triage
+    order: 2
+    goal: Extract ASCII/Unicode strings, identify packed/encrypted sections (UPX, VMProtect), and map API imports to capabilities.
+    why: Strings and API import tables reveal malware intent (e.g. keylogging, process injection, credential dumping, network communications).
+    checklist:
+      - Extract ASCII and UTF-16 Unicode strings from the binary image using Bulk Extractor or strings.
+      - Search for hardcoded IP addresses, URLs, registry paths, mutex names, and user agents.
+      - Analyze Import Address Table (IAT) for sensitive API functions (VirtualAllocEx, WriteProcessMemory, CreateRemoteThread, CryptDecrypt).
+      - Identify Base64 encoded or XOR obfuscated payload strings and decode embedded configurations.
+    lookFor:
+      - Hardcoded C2 domains/IPs, persistence registry keys, ransom note text, process injection API imports, and anti-analysis checks.
+    tools:
+      - bulk-extractor
+      - binwalk
+    resources:
+      - bulk-extractor-docs
+      - sans-dfir-cheatsheets
+      - htb-sherlocks
+    findings:
+      - id: dfir-malware-embedded-c2-found
+        title: Hardcoded C2 IP or domain extracted from binary
+        next:
+          - dfir-pcap-c2-beaconing
+    nextSteps:
+      - dfir-malware-dynamic-sandboxing
+      - dfir-pcap-c2-beaconing
+
+  - id: dfir-malware-dynamic-sandboxing
+    title: Dynamic sandbox detonation & behavioral monitoring
+    category: dfir-malware
+    parent: dfir-malware-static-triage
+    order: 3
+    goal: Execute suspicious binaries in an isolated sandbox to record process spawning, filesystem modifications, and registry persistence.
+    why: Dynamic analysis exposes behavioral payloads, unpacks memory stages, and captures network beaconing that static analysis cannot easily resolve.
+    checklist:
+      - Detonate the suspicious binary in an isolated virtualized sandbox with simulated internet services (INetSim).
+      - Monitor child process creation trees and injected system processes.
+      - Record filesystem modifications (dropped files in %APPDATA%, %TEMP%, /dev/shm).
+      - Capture outbound network requests, DNS queries, and C2 handshake payloads.
+    lookFor:
+      - Dropped secondary payloads, autorun registry persistence, encrypted ransomware extensions, and outbound network callbacks.
+    tools:
+      - velociraptor
+    resources:
+      - velociraptor-docs
+      - cyberdefenders
+      - htb-sherlocks
+    findings:
+      - id: dfir-malware-network-callback-triggered
+        title: Malware initiates outbound C2 connection
+        next:
+          - dfir-pcap-c2-beaconing
+    nextSteps:
+      - dfir-malware-ioc-synthesis
+      - dfir-pcap-c2-beaconing
+
+  - id: dfir-malware-ioc-synthesis
+    title: Synthesize YARA rules & malware IOC signatures
+    category: dfir-malware
+    parent: dfir-malware-static-triage
+    order: 4
+    goal: Generate targeted YARA rules, cryptographic hashes, and network indicator feeds to hunt across enterprise endpoints.
+    why: Translating malware findings into enterprise detection rules blocks further spread and accelerates scoping across the fleet.
+    checklist:
+      - Write targeted YARA rules matching unique strings, byte sequences, and PE header characteristics.
+      - Compile a definitive IOC package including SHA-256 hashes, mutex names, C2 IPs/domains, and dropped file paths.
+      - Deploy YARA rules via Velociraptor across enterprise endpoints to hunt for latent infections.
+      - Validate rules against clean file corpuses to ensure zero false positive triggers.
+    lookFor:
+      - High-fidelity YARA rules, enterprise hunt results, matched endpoint hosts, and confirmed containment coverage.
+    tools:
+      - velociraptor
+    resources:
+      - velociraptor-docs
+      - sans-dfir-cheatsheets
+      - dfir-blog
+    findings: []
+    nextSteps:
+      - dfir-report-technical-forensic-report
