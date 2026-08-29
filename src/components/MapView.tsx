@@ -10,8 +10,11 @@ interface MapViewProps {
   onSelect: (nodeId: string) => void
 }
 
-function shortId(wstgId?: string): string {
-  return wstgId?.replace('WSTG-v42-', '') ?? 'BRANCH'
+function shortId(node: { id: string; wstgId?: string }): string {
+  if (node.wstgId) {
+    return node.wstgId.replace('WSTG-v42-', '')
+  }
+  return node.id.replace(/^dfir-/, '').toUpperCase().slice(0, 10)
 }
 
 export function MapView({
@@ -42,7 +45,7 @@ export function MapView({
                 <span className="tree-disclosure" aria-hidden="true">
                   <ChevronRight />
                 </span>
-                <span className="node-id">{shortId(node.wstgId)}</span>
+                <span className="node-id">{shortId(node)}</span>
                 <span className="node-title">{node.title}</span>
                 <span className={completed ? 'node-status is-complete' : 'node-status'}>
                   {completed ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}

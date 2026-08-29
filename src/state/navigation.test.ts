@@ -4,6 +4,7 @@ import { navigationReducer, type NavigationState } from './navigation'
 
 const selected: NavigationState = {
   mode: 'map',
+  selectedDomain: 'web',
   selectedCategoryId: 'information-gathering',
   selectedNodeId: 'web-identify-technologies',
 }
@@ -25,8 +26,19 @@ describe('navigationReducer', () => {
       }),
     ).toEqual({
       mode: 'map',
+      selectedDomain: 'web',
       selectedCategoryId: 'information-gathering',
       selectedNodeId: 'web-graphql-overview',
     })
+  })
+
+  it('select-domain switches to dfir and resets category/node', () => {
+    const result = navigationReducer(selected, {
+      type: 'select-domain',
+      domain: 'dfir',
+    })
+    expect(result.selectedDomain).toBe('dfir')
+    expect(result.selectedCategoryId.startsWith('dfir-')).toBe(true)
+    expect(result.selectedNodeId.startsWith('dfir-')).toBe(true)
   })
 })

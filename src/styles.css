@@ -30,10 +30,15 @@ button { color: inherit; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .rootmap-app { min-height: 100vh; background: var(--bg); }
-.app-header { height: 68px; display: grid; grid-template-columns: 280px 1fr; border-bottom: 1px solid var(--border); background: rgba(11, 20, 33, .96); }
-.wordmark { display: flex; align-items: center; gap: 10px; padding: 0 26px; font-size: 24px; font-weight: 700; }
+.app-header { height: 68px; display: flex; align-items: stretch; border-bottom: 1px solid var(--border); background: rgba(11, 20, 33, .96); }
+.wordmark { width: 280px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 0 26px; font-size: 24px; font-weight: 700; }
 .wordmark svg { width: 32px; height: 32px; color: var(--accent); stroke-width: 1.8; }
-.mode-nav { display: flex; align-items: stretch; gap: 4px; padding-left: 0; }
+.domain-nav { display: flex; align-items: center; gap: 4px; padding-left: 18px; border-left: 1px solid var(--border); }
+.domain-button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); padding: 0 22px; display: flex; align-items: center; gap: 9px; font-size: 16px; cursor: pointer; height: 68px; }
+.domain-button svg { width: 20px; }
+.domain-button:hover { color: var(--text); background: var(--surface-active); }
+.domain-button.is-active { color: var(--accent); background: var(--accent-soft); border-bottom-color: var(--accent); }
+.mode-nav { display: flex; align-items: stretch; gap: 4px; padding-left: 0; border-left: 1px solid var(--border); }
 .mode-button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); padding: 0 28px; display: flex; align-items: center; gap: 10px; font-size: 17px; cursor: pointer; }
 .mode-button svg { width: 21px; }
 .mode-button:hover { color: var(--text); background: var(--surface-active); }
@@ -133,7 +138,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .checklist-node-button:hover, .checklist-row.is-active .checklist-node-button { color: var(--accent); }
 
 @media (max-width: 1100px) {
-  .app-header { grid-template-columns: 220px 1fr; }
+  .wordmark { width: 220px; }
   .app-grid { grid-template-columns: 220px minmax(400px, 1fr); height: auto; min-height: calc(100vh - 68px); }
   .node-detail { grid-column: 2; border-top: 1px solid var(--border); }
   .category-rail { grid-row: 1 / span 2; }
@@ -141,9 +146,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 }
 
 @media (max-width: 720px) {
-  .app-header { height: auto; grid-template-columns: 1fr; }
-  .wordmark { height: 58px; border-bottom: 1px solid var(--border); }
-  .mode-nav { height: 58px; }
+  .app-header { height: auto; flex-direction: column; }
+  .wordmark { width: 100%; height: 58px; border-bottom: 1px solid var(--border); }
+  .domain-nav { height: 58px; padding-left: 0; border-left: 0; border-bottom: 1px solid var(--border); }
+  .domain-button { flex: 1; justify-content: center; height: 58px; padding: 0 12px; }
+  .mode-nav { height: 58px; border-left: 0; }
   .mode-button { flex: 1; justify-content: center; padding: 0 12px; }
   .progress-count { margin-left: 0; padding: 0 14px; font-size: 12px; }
   .app-grid { display: block; }

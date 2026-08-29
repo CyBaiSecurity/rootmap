@@ -6,11 +6,12 @@ import { ChecklistView } from './components/ChecklistView'
 import { MapView } from './components/MapView'
 import { NodeDetail } from './components/NodeDetail'
 import { projectGraph } from './content/projectContent'
-import { navigationReducer } from './state/navigation'
+import { navigationReducer, type NavigationState } from './state/navigation'
 import { useProgress } from './state/useProgress'
 
-const initialNavigation = {
-  mode: 'map' as const,
+const initialNavigation: NavigationState = {
+  mode: 'map',
+  selectedDomain: 'web',
   selectedCategoryId: 'information-gathering',
   selectedNodeId: 'web-identify-technologies',
 }
@@ -19,12 +20,20 @@ export function App() {
   const [navigation, dispatch] = useReducer(navigationReducer, initialNavigation)
   const { progress, toggle } = useProgress()
   const completedIds = useMemo(() => new Set(progress.completed), [progress.completed])
-  const category = projectGraph.categories.find(
-    ({ id }) => id === navigation.selectedCategoryId,
-  ) ?? projectGraph.categories[0]
-  const nodes = (projectGraph.rootsByCategory.get(category.id) ?? []).filter(
-    ({ wstgId }) => Boolean(wstgId),
+
+  const categoriesForDomain = useMemo(
+    () =>
+      projectGraph.categories.filter(
+        (c) => (c.id.startsWith('dfir-') ? 'dfir' : 'web') === navigation.selectedDomain,
+      ),
+    [navigation.selectedDomain],
   )
+
+  const category =
+    categoriesForDomain.find(({ id }) => id === navigation.selectedCategoryId) ??
+    categoriesForDomain[0]
+
+  const nodes = projectGraph.rootsByCategory.get(category.id) ?? []
   const selectedNode = projectGraph.nodesById.get(navigation.selectedNodeId) ?? nodes[0]
 
   const selectNode = (nodeId: string) => {
@@ -33,20 +42,51 @@ export function App() {
     dispatch({ type: 'select-node', nodeId, categoryId: node.category })
   }
 
+  const handleDomainChange = (domain: 'web' | 'dfir') => {
+    const targetCategories = projectGraph.categories.filter(
+      (c) => (c.id.startsWith('dfir-') ? 'dfir' : 'web') === domain,
+    )
+    const firstCategory = targetCategories[0]
+    const firstNode = firstCategory
+      ? projectGraph.rootsByCategory.get(firstCategory.id)?.[0]
+      : undefined
+    if (firstCategory && firstNode) {
+      dispatch({
+        type: 'select-domain',
+        domain,
+        categoryId: firstCategory.id,
+        firstNodeId: firstNode.id,
+      })
+    } else {
+      dispatch({ type: 'select-domain', domain })
+    }
+  }
+
   return (
     <div className="rootmap-app">
       <AppHeader
         mode={navigation.mode}
-        completedCount={completedIds.size}
-        totalCount={[...projectGraph.nodesById.values()].filter(({ wstgId }) => wstgId).length}
+        domain={navigation.selectedDomain}
+        completedCount={
+          [...completedIds].filter(
+            (id) => (id.startsWith('dfir-') ? 'dfir' : 'web') === navigation.selectedDomain,
+          ).length
+        }
+        totalCount={
+          [...projectGraph.nodesById.values()].filter(
+            (n) => (n.id.startsWith('dfir-') ? 'dfir' : 'web') === navigation.selectedDomain,
+          ).length
+        }
         onModeChange={(mode) => dispatch({ type: 'set-mode', mode })}
+        onDomainChange={handleDomainChange}
       />
       <div className="app-grid">
         <CategoryRail
-          categories={projectGraph.categories}
+          categories={categoriesForDomain}
           selectedId={category.id}
+          domain={navigation.selectedDomain}
           onSelect={(categoryId) => {
-            const firstNode = projectGraph.rootsByCategory.get(categoryId)?.find(({ wstgId }) => wstgId)
+            const firstNode = projectGraph.rootsByCategory.get(categoryId)?.[0]
             if (firstNode) {
               dispatch({ type: 'select-category', categoryId, firstNodeId: firstNode.id })
             }
@@ -55,7 +95,7 @@ export function App() {
         {navigation.mode === 'map' ? (
           <MapView
             category={category}
-            nodes={selectedNode.wstgId ? nodes : [selectedNode]}
+            nodes={nodes}
             selectedId={selectedNode.id}
             completedIds={completedIds}
             onSelect={selectNode}
@@ -65,9 +105,10 @@ export function App() {
             graph={projectGraph}
             selectedCategoryId={category.id}
             selectedNodeId={selectedNode.id}
+            selectedDomain={navigation.selectedDomain}
             completedIds={completedIds}
             onSelectCategory={(categoryId) => {
-              const firstNode = projectGraph.rootsByCategory.get(categoryId)?.find(({ wstgId }) => wstgId)
+              const firstNode = projectGraph.rootsByCategory.get(categoryId)?.[0]
               if (firstNode) {
                 dispatch({ type: 'select-category', categoryId, firstNodeId: firstNode.id })
               }

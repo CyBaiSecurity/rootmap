@@ -38,4 +38,32 @@ describe('Map mode', () => {
     await user.click(screen.getByRole('button', { name: 'Copy Inspect response headers command' }))
     expect(await navigator.clipboard.readText()).toBe('curl -I https://target.example')
   })
+
+  it('switches to DFIR domain and allows navigating DFIR categories and nodes', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Switch to DFIR domain
+    await user.click(screen.getByRole('button', { name: 'DFIR' }))
+    expect(screen.getByRole('heading', { name: 'DFIR Investigation', level: 2 })).toBeVisible()
+
+    // Click on Disk / Filesystem category in rail
+    await user.click(screen.getByRole('button', { name: /Disk \/ Filesystem/i }))
+    expect(
+      screen.getByRole('heading', { name: 'Disk / Filesystem', level: 1 }),
+    ).toBeVisible()
+
+    // Select the disk verification node
+    await user.click(
+      screen.getByRole('button', { name: /Verify disk image format & cryptographic hash/i }),
+    )
+    expect(
+      screen.getByRole('heading', {
+        name: 'Verify disk image format & cryptographic hash',
+        level: 2,
+      }),
+    ).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Goal' })).toBeVisible()
+    expect(screen.getByText('Disk image hash verified')).toBeVisible()
+  })
 })

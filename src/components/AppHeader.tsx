@@ -1,19 +1,23 @@
-import { Code2, ListChecks, Network } from 'lucide-react'
+import { Code2, ListChecks, Network, ShieldAlert } from 'lucide-react'
 
-import type { RootMapMode } from '../state/navigation'
+import type { RootMapDomain, RootMapMode } from '../state/navigation'
 
 interface AppHeaderProps {
   mode: RootMapMode
+  domain: RootMapDomain
   completedCount: number
   totalCount: number
   onModeChange: (mode: RootMapMode) => void
+  onDomainChange: (domain: RootMapDomain) => void
 }
 
 export function AppHeader({
   mode,
+  domain,
   completedCount,
   totalCount,
   onModeChange,
+  onDomainChange,
 }: AppHeaderProps) {
   return (
     <header className="app-header">
@@ -21,6 +25,26 @@ export function AppHeader({
         <Code2 aria-hidden="true" />
         <span>RootMap</span>
       </div>
+      <nav className="domain-nav" aria-label="Domain">
+        <button
+          className={domain === 'web' ? 'domain-button is-active' : 'domain-button'}
+          type="button"
+          aria-pressed={domain === 'web'}
+          onClick={() => onDomainChange('web')}
+        >
+          <Network aria-hidden="true" />
+          Web
+        </button>
+        <button
+          className={domain === 'dfir' ? 'domain-button is-active' : 'domain-button'}
+          type="button"
+          aria-pressed={domain === 'dfir'}
+          onClick={() => onDomainChange('dfir')}
+        >
+          <ShieldAlert aria-hidden="true" />
+          DFIR
+        </button>
+      </nav>
       <nav className="mode-nav" aria-label="View mode">
         <button
           className={mode === 'map' ? 'mode-button is-active' : 'mode-button'}
