@@ -44,9 +44,13 @@ resources:
     url: https://graphql.org/learn/
     tier: 2
     role: Documentation
+  - id: wappalyzer-docs
+    title: Wappalyzer documentation
+    url: https://www.wappalyzer.com/docs/
+    tier: 2
+    role: Documentation
   - id: portswigger-graphql
     title: PortSwigger Web Security Academy — GraphQL API vulnerabilities
     url: https://portswigger.net/web-security/graphql
     tier: 4
     role: Learning
-

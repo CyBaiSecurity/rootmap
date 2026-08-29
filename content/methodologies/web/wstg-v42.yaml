@@ -132,6 +132,8 @@ nodes:
       - Identify content management systems and exposed plugins.
     lookFor:
       - Server software, frameworks, programming languages, CMS products, plugins, analytics tools, CDNs, and third-party services.
+    tools: [wappalyzer, nmap, curl]
+    resources: [wstg-info, wappalyzer-docs]
     findings:
       - id: graphql-detected
         title: GraphQL detected
@@ -394,4 +396,3 @@ nodes:
     wstgId: WSTG-v42-CLNT-12
     title: Test browser storage
     order: 9
-
