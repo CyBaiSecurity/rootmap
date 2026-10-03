@@ -1,48 +1,60 @@
 # RootMap
 
-RootMap is a browser-based OWASP Web Security Testing Guide navigator. It presents one version-controlled methodology graph as an exploratory Map and a persistent Checklist, with tools, command examples, evidence cues, findings, next steps, and categorized resources attached to each check.
+RootMap is a dependency-free methodology navigator for Web security testing and digital forensics and incident response (DFIR). It ships as plain HTML, CSS, JavaScript, JSON, and SVG, so GitHub Pages and Vercel can serve the repository directly without a package install or build step.
 
-## MVP scope
+## Features
 
-- Web security testing only
-- OWASP WSTG v4.2 content across eight approved categories
-- Map and Checklist views over the same graph
-- Browser-local checklist progress
-- Deterministic GraphQL finding branch
-- Copyable command examples that are never executed by the application
-
-DFIR, steganography, OSINT implementation, accounts, server synchronization, scanning, AI assistance, and tool execution are intentionally outside this MVP.
+- Map and Checklist views backed by one validated content graph
+- OWASP WSTG 4.2 Web testing methodology plus a GraphQL branch
+- NIST SP 800-86-based DFIR workflow: readiness, collection, examination, analysis, and reporting
+- Evidence-source branches for filesystems, volatile/OS data, network traffic, Windows and Linux artifacts, applications/logs, and malware triage
+- Source provenance, tool documentation, safe command examples, findings, and next-step routing
+- Browser-local completion state; assessment progress is not transmitted
 
 ## Run locally
 
+The site must be served over HTTP because browsers do not allow module/JSON loading from `file://` pages.
+
 ```bash
-npm install
-npm run dev
+python3 -m http.server 8000
 ```
 
-Open the local URL printed by Vite.
+Open `http://localhost:8000/`.
 
 ## Verify
 
+No dependencies are required; use a current Node.js release:
+
 ```bash
-npm run typecheck
-npm test
-npm run build
+node --test tests/*.test.js
+node scripts/validate-content.js
 ```
 
-## Content layout
+## Deploy
+
+- GitHub Pages: enable Pages with **GitHub Actions** as the source. `.github/workflows/pages.yml` validates and uploads the repository as-is.
+- Vercel: import the repository. The included `vercel.json` sets `cleanUrls` to true and `trailingSlash` to false, and no build command or output directory is needed.
+
+All asset references are relative, so the site works from a GitHub project subpath such as `/RootMap/`.
+
+## Structure
 
 ```text
-content/
-├── methodologies/web/
-├── tools/
-└── resources/
+index.html                 Loads assets/styles.css and js/app.js
+assets/                    styles.css, icons.svg, favicon.svg
+js/                        app, content, graph, navigation, progress, views
+data/manifest.json         Lists the content files
+data/methodologies/web.json       Web methodology
+data/methodologies/graphql.json   Web methodology file (domain web)
+data/methodologies/dfir.json      DFIR methodology
+data/tools.json
+data/resources.json
+scripts/validate-content.js
+tests/                     node --test
+.github/workflows/pages.yml
+vercel.json                cleanUrls true, trailingSlash false
 ```
 
-YAML is parsed and validated before the application builds its normalized graph. Validation rejects malformed content, duplicate IDs, and missing category, parent, tool, resource, next-step, or finding references.
+## Methodology note
 
-Checklist progress is stored under the versioned browser key `rootmap:progress`. No assessment data leaves the browser.
-
-## Methodology attribution
-
-The methodology hierarchy and identifiers are based on [OWASP WSTG v4.2](https://owasp.org/www-project-web-security-testing-guide/v42/). RootMap uses versioned links so references remain stable. OWASP WSTG material is provided under the Creative Commons Attribution-ShareAlike 4.0 license; RootMap’s concise guidance is paraphrased and links back to the authoritative guide.
+DFIR follows NIST SP 800-86: readiness, collection, examination, analysis, and reporting. A finding can stay inconclusive. The pages keep alternate hypotheses, source limits, and privacy limits in the write-up. The app does not run commands. Command text stays in the content.

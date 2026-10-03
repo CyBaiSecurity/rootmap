@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "methodologies": [
+    "methodologies/web.json",
+    "methodologies/graphql.json",
+    "methodologies/dfir.json"
+  ],
+  "tools": [
+    "tools.json"
+  ],
+  "resources": [
+    "resources.json"
+  ]
+}
