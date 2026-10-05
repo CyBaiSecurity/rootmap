@@ -32,10 +32,10 @@ node scripts/validate-content.js
 
 ## Deploy
 
-- GitHub Pages: enable Pages with **GitHub Actions** as the source. `.github/workflows/pages.yml` validates and uploads the repository as-is.
+- GitHub Pages: https://cybaisecurity.github.io/rootmap/ . `.github/workflows/pages.yml` validates and uploads the repository as-is. Pages builds from that workflow.
 - Vercel: import the repository. The included `vercel.json` sets `cleanUrls` to true and `trailingSlash` to false, and no build command or output directory is needed.
 
-All asset references are relative, so the site works from a GitHub project subpath such as `/RootMap/`.
+All asset references are relative, so the site works from a GitHub project subpath such as `/rootmap/`.
 
 ## Structure
 
